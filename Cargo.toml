@@ -1,0 +1,7 @@
+[package]
+name = "faster-rs"
+version = "0.1.0"
+authors = ["Max Meldrum <mmeldrum@kth.se>"]
+edition = "2018"
+
+[dependencies]
