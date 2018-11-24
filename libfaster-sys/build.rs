@@ -1,18 +1,11 @@
-extern crate cc;
 extern crate bindgen;
 
 use std::env;
 use std::fs;
 use std::path::PathBuf;
+use cmake::Config;
 
-fn build_faster() {
-    let mut config = cc::Build::new();
-
-    config.include("FASTER/cc/src/");
-    config.compile("fasterc");
-}
-
-// https://github.com/rust-rocksdb/rust-rocksdb/blob/master/librocksdb-sys/build.rs
+// Credit to: https://github.com/rust-rocksdb/rust-rocksdb/blob/master/librocksdb-sys/build.rs
 fn fail_on_empty_directory(name: &str) {
     if fs::read_dir(name).unwrap().count() == 0 {
         println!(
@@ -38,29 +31,28 @@ fn faster_bindgen() {
         .expect("unable to write faster bindings");
 }
 
-fn try_to_find_and_link_lib(lib_name: &str) -> bool {
-    if let Ok(lib_dir) = env::var(&format!("{}_LIB_DIR", lib_name)) {
-        println!("cargo:rustc-link-search=native={}", lib_dir);
-        let mode = match env::var_os(&format!("{}_STATIC", lib_name)) {
-            Some(_) => "static",
-            None => "dylib",
-        };
-        println!("cargo:rustc-link-lib={}={}", mode, lib_name.to_lowercase());
-        return true;
-    }
-    false
-}
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=FASTER/");
 
     fail_on_empty_directory("FASTER");
+
     faster_bindgen();
 
-    if !try_to_find_and_link_lib("FASTER") {
-        build_faster();
-    } else {
-        println!("NEJ");
-    }
+    let dst = Config::new("FASTER/cc")
+        .cflag("--std=c++11 ")
+        .build();
+
+    println!("cargo:rustc-link-search=native={}/{}", dst.display(), "build");
+    // Fix this...
+    println!("cargo:rustc-link-lib=static=faster");
+    println!("cargo:rustc-link-lib=stdc++fs");
+    println!("cargo:rustc-link-lib=uuid");
+    println!("cargo:rustc-link-lib=tbb");
+    println!("cargo:rustc-link-lib=gcc");
+    println!("cargo:rustc-link-lib=stdc++");
+    println!("cargo:rustc-link-lib=aio");
+    println!("cargo:rustc-link-lib=pthread");
+    println!("cargo:rustc-link-lib=m");
 }
