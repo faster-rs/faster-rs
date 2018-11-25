@@ -1,10 +1,13 @@
 [package]
-name = "faster-rs"
+name = "faster_kvs"
 version = "0.1.0"
 authors = ["Max Meldrum <mmeldrum@kth.se>"]
 edition = "2018"
+keywords = ["concurrent", "embedded", "key-value store"]
+description = "Rust wrapper for FASTER by Microsoft Research"
 
 [dependencies]
+uuid = { version = "0.7", features = ["v4"] }
 libc = "0.2"
 libfaster-sys = { path = "libfaster-sys", version = "0.1.0" }
 

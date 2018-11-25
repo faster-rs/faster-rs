@@ -13,17 +13,17 @@ pub struct FasterKv {
 }
 
 impl FasterKv {
-    pub fn new(table_size: u64, log_size: u64, storage_name: String) -> FasterKv {
+    pub fn new(table_size: u64, log_size: u64, storage_name: String) -> std::io::Result<FasterKv> {
         let saved_dir = storage_name.clone();
         let storage_str = CString::new(storage_name).unwrap();
         let ptr_raw = storage_str.into_raw();
         unsafe {
             let ft = ffi::faster_open_with_disk(table_size, log_size, ptr_raw);
             let _ = CString::from_raw(ptr_raw); // retake pointer to free mem
-            FasterKv {
+            Ok(FasterKv {
                 faster_t: ft,
                 storage_dir: saved_dir
-            }
+            })
         }
     }
 
@@ -80,28 +80,31 @@ mod tests {
 
     #[test]
     fn faster_check() {
-        let store = FasterKv::new(TABLE_SIZE, LOG_SIZE, String::from("hej"));
-        let key: u64 = 1;
-        let value: u64 = 1337;
+        if let Ok(store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, String::from("storage")) {
+            let key: u64 = 1;
+            let value: u64 = 1337;
 
-        store.upsert(key, value);
+            store.upsert(key, value);
 
-        let res = store.read(key);
-        assert!(res == status::OK);
+            let res = store.read(key);
+            assert!(res == status::OK);
 
-        let res = store.read(2 as u64);
-        assert!(res == status::NOT_FOUND);
-
-
-        let rmw = store.rmw(key, 5 as u64);
-        assert!(rmw == status::OK);
+            let res = store.read(2 as u64);
+            assert!(res == status::NOT_FOUND);
 
 
-        assert!(store.size() > 0);
+            let rmw = store.rmw(key, 5 as u64);
+            assert!(rmw == status::OK);
 
-        match store.clean_storage() {
-            Ok(()) => assert!(true),
-            Err(_err) => assert!(false)
+
+            assert!(store.size() > 0);
+
+            match store.clean_storage() {
+                Ok(()) => assert!(true),
+                Err(_err) => assert!(false)
+            }
+        } else {
+            assert!(false)
         }
     }
 }
