@@ -6,7 +6,7 @@ use faster_kvs::FasterKv;
 fn single_checkpoint() {
     let table_size: u64  = 1 << 14;
     let log_size: u64 = 17179869184;
-    if let Ok(store) = FasterKv::new(table_size, log_size, String::from("test_storage")) {
+    if let Ok(store) = FasterKv::new(table_size, log_size, String::from("test_checkpoint")) {
         let value: u64 = 100;
 
         for key in 0..1000 {

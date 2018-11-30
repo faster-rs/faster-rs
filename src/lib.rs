@@ -21,14 +21,12 @@ impl FasterKv {
         let saved_dir = storage_name.clone();
         let storage_str = CString::new(storage_name).unwrap();
         let ptr_raw = storage_str.into_raw();
-        unsafe {
+        let faster_t = unsafe {
             let ft = ffi::faster_open_with_disk(table_size, log_size, ptr_raw);
             let _ = CString::from_raw(ptr_raw); // retake pointer to free mem
-            Ok(FasterKv {
-                faster_t: ft,
-                storage_dir: saved_dir
-            })
-        }
+            ft
+        };
+        Ok(FasterKv { faster_t: faster_t, storage_dir: saved_dir })
     }
 
     pub fn upsert(&self, key: u64, value: u64) -> u8 {
@@ -56,20 +54,18 @@ impl FasterKv {
     }
 
     pub fn checkpoint(&self) -> Option<CheckPoint> {
-        unsafe {
-            let result: *mut ffi::faster_checkpoint_result = ffi::faster_checkpoint(self.faster_t);
-            if result.is_null() {
-                None
-            } else {
-                let boxed = Box::from_raw(result); // makes sure memory is dropped
-                let token_str = CStr::from_ptr((*boxed).token)
-                    .to_str()
-                    .unwrap()
-                    .to_owned();
+        let result = unsafe { ffi::faster_checkpoint(self.faster_t) };
+        if result.is_null() {
+            None
+        } else {
+            let boxed = unsafe { Box::from_raw(result) }; // makes sure memory is dropped
+            let token_str = unsafe {CStr::from_ptr((*boxed).token)
+                .to_str()
+                .unwrap()
+                .to_owned() };
 
-                let checkpoint = CheckPoint { checked: (*boxed).checked, token: token_str};
-                Some(checkpoint)
-            }
+            let checkpoint = CheckPoint { checked: (*boxed).checked, token: token_str};
+            Some(checkpoint)
         }
     }
 
@@ -80,18 +76,69 @@ impl FasterKv {
         let hybrid_token_c = CString::new(hybrid_log_token).unwrap();
         let hybrid_token_ptr = hybrid_token_c.into_raw();
 
-        unsafe {
-            let recover_result = ffi::faster_recover(self.faster_t, index_token_ptr, hybrid_token_ptr);
+        let recover_result = unsafe {
+            let rec = ffi::faster_recover(self.faster_t, index_token_ptr, hybrid_token_ptr);
             let _ = CString::from_raw(index_token_ptr);
             let _ = CString::from_raw(hybrid_token_ptr);
+            rec
+        };
 
-            if !recover_result.is_null() {
-                let boxed = Box::from_raw(recover_result); // makes sure mem is freed
-                let recover = Recover { status: (*boxed).status, version: (*boxed).version, session_ids: Vec::new()};
-                Some(recover)
-            } else {
-                None
+        if !recover_result.is_null() {
+            let boxed = unsafe { Box::from_raw(recover_result) }; // makes sure mem is freed
+            let sessions_count = (*boxed).session_ids_count;
+            let mut session_ids_vec: Vec<String> = Vec::new();
+            for i in 0..sessions_count {
+                let id = unsafe {
+                    CStr::from_ptr((*(*boxed).session_ids).offset(i as isize))
+                        .to_str()
+                        .unwrap()
+                        .to_owned()
+                };
+                session_ids_vec.push(id);
             }
+            let recover = Recover { status: (*boxed).status, version: (*boxed).version, session_ids: session_ids_vec};
+            Some(recover)
+        } else {
+            None
+        }
+    }
+
+    pub fn complete_pending(&self, b: bool) -> () {
+        unsafe {
+            ffi::faster_complete_pending(self.faster_t, b)
+        }
+    }
+
+    pub fn start_session(&self) -> String {
+        unsafe {
+            let c_guid = ffi::faster_start_session(self.faster_t);
+            let rust_str = CStr::from_ptr(c_guid)
+                .to_str()
+                .unwrap()
+                .to_owned();
+            rust_str
+        }
+    }
+
+    pub fn continue_session(&self, token: String) -> u64 {
+        let token_str = CString::new(token).unwrap();
+        let token_ptr = token_str.into_raw();
+        unsafe {
+            let result = ffi::faster_continue_session(self.faster_t, token_ptr);
+            let _ = CString::from_raw(token_ptr);
+            result
+        }
+    }
+
+    pub fn stop_session(&self) -> () {
+        unsafe {
+            ffi::faster_stop_session(self.faster_t)
+        }
+    }
+
+    pub fn refresh(&self) -> () {
+        unsafe {
+            ffi::faster_refresh_session(self.faster_t);
         }
     }
 
@@ -108,7 +155,7 @@ impl FasterKv {
     }
 }
 
-// In order to make sure we release the resources the C interface has allocated
+// In order to make sure we release the resources the C interface has allocated for the store
 impl Drop for FasterKv {
     fn drop(&mut self) {
         self.destroy();
