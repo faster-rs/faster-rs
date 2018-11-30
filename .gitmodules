@@ -1,5 +1,5 @@
 [submodule "libfaster-sys/FASTER"]
 	path = libfaster-sys/FASTER
     url = git@github.com:Max-Meldrum/FASTER.git
-    branch = c_interface_experimenting
+    branch = dev
 

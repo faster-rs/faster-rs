@@ -1,16 +1,33 @@
 extern crate faster_kvs;
-extern crate uuid;
 
 use faster_kvs::FasterKv;
-use uuid::Uuid;
 
 #[test]
 fn single_checkpoint() {
     let table_size: u64  = 1 << 14;
     let log_size: u64 = 17179869184;
-    let store = FasterKv::new(table_size, log_size, String::from("hej")).unwrap();
-    let _token = Uuid::new_v4();
-    store.clean_storage()
-        .expect("Failed cleaning storage");
-    // Todo when checkpoint is fixed
+    if let Ok(store) = FasterKv::new(table_size, log_size, String::from("test_storage")) {
+        let value: u64 = 100;
+
+        for key in 0..1000 {
+            store.upsert(key as u64, value);
+        }
+
+        let checkpoint = store.checkpoint().unwrap();
+        assert_eq!(checkpoint.checked, true);
+        assert_eq!(checkpoint.token.len(), 37-1); // -1 \0
+
+        match store.clean_storage() {
+            Ok(()) => assert!(true),
+            Err(_err) => assert!(false)
+        }
+    } else {
+        assert!(false);
+    }
+}
+
+
+#[test]
+fn concurrent_checkpoints() {
+    //TODO
 }

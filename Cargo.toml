@@ -7,7 +7,6 @@ keywords = ["concurrent", "embedded", "key-value store"]
 description = "Rust wrapper for FASTER by Microsoft Research"
 
 [dependencies]
-uuid = { version = "0.7", features = ["v4"] }
 libc = "0.2"
 libfaster-sys = { path = "libfaster-sys", version = "0.1.0" }
 

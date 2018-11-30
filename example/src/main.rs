@@ -26,6 +26,16 @@ fn main() {
 
         println!("Store size: {}", store.size());
 
+
+        match store.checkpoint() {
+            Some(c) => {
+                let rec = store.recover(c.token.clone(), c.token.clone()).unwrap();
+                println!("{}", rec.status);
+                println!("{}", rec.version);
+            },
+            None =>  println!("checkpointing failed")
+        }
+
         match store.clean_storage() {
             Ok(()) => println!("{}", "Cleaned storage"),
             Err(err) => panic!(err)
