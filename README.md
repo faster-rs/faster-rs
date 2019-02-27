@@ -32,8 +32,9 @@ fn main() {
 
 
     // Read
-    let read = store.read(key);
+    let (status, recv) = store.read(key);
     assert_eq!(read, status::OK);
+    assert_eq!(recv.recv().unwrap(), value);
 
     let bad_key: u64 = 2;
     let bad_read = store.read(bad_key);
@@ -44,7 +45,7 @@ fn main() {
 
 # Things to fix
 
-- [ ] Fix so you can actually return the values from read
+- [x] Fix so you can actually return the values from read
 - [ ] Experiment with #repr(C) structs for values rather than u64
 - [ ] Look into threading and async callbacks into Rust
 - [ ] Finish off the rest off the operations in the C interface
