@@ -47,10 +47,9 @@ impl FasterKv {
     pub fn read(&self, key: u64) -> (u8, Receiver<u64>) {
         let (sender, receiver) = channel();
         let sender_ptr: *mut Sender<u64> = Box::into_raw(Box::new(sender));
-        let status;
-        unsafe {
-            status = ffi::faster_read(self.faster_t, key, Some(read_callback), sender_ptr as *mut libc::c_void);
-        }
+        let status = unsafe {
+            ffi::faster_read(self.faster_t, key, Some(read_callback), sender_ptr as *mut libc::c_void)
+        };
         (status, receiver)
     }
 
