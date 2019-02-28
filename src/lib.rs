@@ -175,6 +175,9 @@ impl Drop for FasterKv {
     }
 }
 
+unsafe impl Send for FasterKv {}
+unsafe impl Sync for FasterKv {}
+
 
 #[cfg(test)]
 mod tests {
