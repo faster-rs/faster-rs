@@ -1,11 +1,14 @@
 [package]
 name = "libfaster-sys"
+description = "Bindings for FASTER"
 version = "0.1.0"
 authors = ["Max Meldrum <mmeldrum@kth.se>"]
 edition = "2018"
-
+repository = "https://github.com/Max-Meldrum/faster-rs.git"
+keywords = [ "FASTER", "ffi", "experimental" ]
 build = "build.rs"
 links = "faster"
+license = "MIT"
 
 [dependencies]
 libc = "0.2"

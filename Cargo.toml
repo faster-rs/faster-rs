@@ -3,8 +3,12 @@ name = "faster_kvs"
 version = "0.1.0"
 authors = ["Max Meldrum <mmeldrum@kth.se>"]
 edition = "2018"
-keywords = ["concurrent", "embedded", "key-value store"]
+keywords = ["concurrent", "embedded", "key-value-store"]
 description = "Rust wrapper for FASTER by Microsoft Research"
+repository = "https://github.com/Max-Meldrum/faster-rs"
+license = "MIT"
+readme = "README.md"
+
 
 [dependencies]
 libc = "0.2"
