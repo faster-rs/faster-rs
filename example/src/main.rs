@@ -18,6 +18,7 @@ fn main() {
         let operation = &args[1].to_string();
 
         if operation == "populate" {
+            println!("{}", "This may take a while, and make sure you have disk space");
             populate();
         } else if operation == "recover" {
             if args.len() > 2 {
@@ -76,10 +77,15 @@ fn recover(token: String) -> () {
                     println!("{:?}", rec.session_ids);
                     recover_store.continue_session(rec.session_ids.first().cloned().unwrap());
                     println!("Verifying recovered values!");
+                    let value: u64 = 1000;
                     for i in 0..NUM_OPS {
                         let idx = i as u64;
-                        let r = recover_store.read(idx);
-                        assert_eq!(r, status::OK);
+                        let (status, recv)= recover_store.read(idx);
+                        if let Ok(val) = recv.recv() {
+                            assert_eq!(val, value);
+                        } else {
+                            println!("Failure to read with status: {}, and key: {}", status, idx);
+                        }
                     }
                     println!("Ok.....!");
                     recover_store.stop_session();
@@ -89,6 +95,5 @@ fn recover(token: String) -> () {
         } else {
             println!("{}", "Failed to create recover store");
         }
-
 }
 
