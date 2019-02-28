@@ -6,10 +6,19 @@ use std::ffi::CString;
 use std::ffi::CStr;
 use std::fs;
 use std::io;
+use std::sync::mpsc::{channel, Sender, Receiver};
 
 pub mod status;
 pub mod util;
 use self::util::*;
+
+extern fn read_callback(sender: *mut libc::c_void, value: u64, status: u32) {
+    let boxed_sender = unsafe {Box::from_raw(sender as *mut Sender<u64>)};
+    let sender = *boxed_sender;
+    if status == status::OK.into() {
+        sender.send(value).unwrap();
+    }
+}
 
 pub struct FasterKv {
     faster_t: *mut ffi::faster_t,
@@ -35,10 +44,14 @@ impl FasterKv {
         }
     }
 
-    pub fn read(&self, key: u64) -> u8 {
+    pub fn read(&self, key: u64) -> (u8, Receiver<u64>) {
+        let (sender, receiver) = channel();
+        let sender_ptr: *mut Sender<u64> = Box::into_raw(Box::new(sender));
+        let status;
         unsafe {
-            ffi::faster_read(self.faster_t, key)
+            status = ffi::faster_read(self.faster_t, key, Some(read_callback), sender_ptr as *mut libc::c_void);
         }
+        (status, receiver)
     }
 
     pub fn rmw(&self, key: u64, value: u64) -> u8 {
@@ -178,12 +191,6 @@ mod tests {
             let upsert = store.upsert(key, value);
             assert!((upsert == status::OK || upsert == status::PENDING) == true);
 
-            let res = store.read(key);
-            assert!(res == status::OK);
-
-            let res = store.read(2 as u64);
-            assert!(res == status::NOT_FOUND);
-
             let rmw = store.rmw(key, 5 as u64);
             assert!(rmw == status::OK);
 
@@ -195,6 +202,70 @@ mod tests {
             }
         } else {
             assert!(false)
+        }
+    }
+
+    #[test]
+    fn faster_read_inserted_value() {
+        if let Ok(store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, String::from("storage1")) {
+            let key: u64 = 1;
+            let value: u64 = 1337;
+
+            let upsert = store.upsert(key, value);
+            assert!((upsert == status::OK || upsert == status::PENDING) == true);
+
+            let (res, recv) = store.read(key);
+            assert!(res == status::OK);
+            assert!(recv.recv().unwrap() == value);
+
+            match store.clean_storage() {
+                Ok(()) => assert!(true),
+                Err(_err) => assert!(false)
+            }
+        }
+    }
+
+    #[test]
+    fn faster_read_missing_value_recv_error() {
+        if let Ok(store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, String::from("storage2")) {
+            let key: u64 = 1;
+
+            let (res, recv) = store.read(key);
+            assert!(res == status::NOT_FOUND);
+            assert!(recv.recv().is_err());
+
+            match store.clean_storage() {
+                Ok(()) => assert!(true),
+                Err(_err) => assert!(false)
+            }
+        }
+    }
+
+    #[test]
+    fn faster_rmw_changes_values() {
+        if let Ok(store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, String::from("storage3")) {
+            let key: u64 = 1;
+            let value: u64 = 1337;
+            let modification: u64 = 100;
+
+            let upsert = store.upsert(key, value);
+            assert!((upsert == status::OK || upsert == status::PENDING) == true);
+
+            let (res, recv) = store.read(key);
+            assert!(res == status::OK);
+            assert!(recv.recv().unwrap() == value);
+
+            let rmw = store.rmw(key, modification);
+            assert!((rmw == status::OK || rmw == status::PENDING) == true);
+
+            let (res, recv) = store.read(key);
+            assert!(res == status::OK);
+            assert!(recv.recv().unwrap() == value + modification);
+
+            match store.clean_storage() {
+                Ok(()) => assert!(true),
+                Err(_err) => assert!(false)
+            }
         }
     }
 }
