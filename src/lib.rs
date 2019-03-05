@@ -270,4 +270,24 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn faster_rmw_without_upsert() {
+        if let Ok(store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, String::from("storage4")) {
+            let key: u64 = 1;
+            let modification: u64 = 100;
+
+            let rmw = store.rmw(key, modification);
+            assert!((rmw == status::OK || rmw == status::PENDING) == true);
+
+            let (res, recv) = store.read(key);
+            assert!(res == status::OK);
+            assert!(recv.recv().unwrap() == modification);
+
+            match store.clean_storage() {
+                Ok(()) => assert!(true),
+                Err(_err) => assert!(false)
+            }
+        }
+    }
 }
