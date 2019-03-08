@@ -32,7 +32,7 @@ fn main() {
     // Read
     let (status, recv) = store.read(key);
     assert_eq!(status, status::OK);
-    assert_eq!(recv.recv().unwrap(), value);
+    assert_eq!(recv.recv().unwrap(), value + incr);
 
     let bad_key: u64 = 2;
     let (status, recv) = store.read(bad_key);
