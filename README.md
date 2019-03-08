@@ -24,21 +24,19 @@ fn main() {
     // Upsert
     store.upsert(key, value);
 
-
     // Read-Modify-Write
     let incr: u64 = 50;
     let rmw = store.rmw(key, incr);
     assert_eq!(rmw, status::OK);
 
-
     // Read
     let (status, recv) = store.read(key);
-    assert_eq!(read, status::OK);
+    assert_eq!(status, status::OK);
     assert_eq!(recv.recv().unwrap(), value);
 
     let bad_key: u64 = 2;
-    let bad_read = store.read(bad_key);
-    assert_eq!(bad_read, status::NOT_FOUND);
+    let (status, recv) = store.read(bad_key);
+    assert_eq!(status, status::NOT_FOUND);
   }
 }
 ```
