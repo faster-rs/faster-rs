@@ -3,6 +3,7 @@ extern crate faster_kvs;
 use faster_kvs::FasterKv;
 use std::thread;
 use std::sync::Arc;
+use std::sync::mpsc::Receiver;
 
 #[test]
 fn multi_threaded_test() {
@@ -15,7 +16,7 @@ fn multi_threaded_test() {
     let modification: u64 = 30;
 
     for key in 0..ops {
-        store.upsert(key as u64, initial_value);
+        store.upsert(key as u64, &initial_value);
     }
 
     let num_threads = 4;
@@ -27,7 +28,7 @@ fn multi_threaded_test() {
             let session = store.start_session();
 
             for key in 0..ops {
-                store.rmw(key as u64, modification);
+                store.rmw(key as u64, &modification);
             }
 
             // Make sure everything is completed
@@ -44,7 +45,7 @@ fn multi_threaded_test() {
 
     for key in 0..ops {
         let expected_value = initial_value + (modification * num_threads);
-        let (res, recv) = store.read(key as u64);
+        let (res, recv): (u8, Receiver<u64>) = store.read(key as u64);
         assert_eq!(recv.recv().unwrap(), expected_value);
     }
 
