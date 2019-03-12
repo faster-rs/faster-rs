@@ -10,7 +10,7 @@ fn single_checkpoint() {
         let value: u64 = 100;
 
         for key in 0..1000 {
-            store.upsert(key as u64, value);
+            store.upsert(key as u64, &value);
         }
 
         let checkpoint = store.checkpoint().unwrap();
