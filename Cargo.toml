@@ -1,7 +1,7 @@
 [package]
 name = "faster_kvs"
 version = "0.1.0"
-authors = ["Max Meldrum <mmeldrum@kth.se>"]
+authors = ["Max Meldrum <mmeldrum@kth.se>", "Matthew Brookes <mbrookes1304@gmail.com>"]
 edition = "2018"
 keywords = ["concurrent", "embedded", "key-value-store"]
 description = "Rust wrapper for FASTER by Microsoft Research"
