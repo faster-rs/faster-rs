@@ -36,5 +36,5 @@ pub trait FasterValue<'a, T: Deserialize<'a> + Serialize + FasterValue<'a, T>> {
         size as u64
     }
 
-    fn rmw(&self, _modification: T) -> T;
+    fn rmw(&self, modification: T) -> T;
 }
