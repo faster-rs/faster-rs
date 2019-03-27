@@ -123,6 +123,12 @@ fn main() {
 }
 ```
 
+## Out-of-the-box implementations of `FasterValue`
+Several types already implement `FasterValue` along with providing Read-Modify-Write logic. The implementations can be found in `src/impls.rs` but their RMW logic is summarised here:
+* Numeric types use addition
+* Bools and Chars replace old value for new value
+* Strings and Vectors append new values (use an `upsert` to replace entire value)
+
 # Things to fix
 
 - [x] Fix so you can actually return the values from read
