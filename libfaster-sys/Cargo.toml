@@ -2,7 +2,7 @@
 name = "libfaster-sys"
 description = "Bindings for FASTER"
 version = "0.1.0"
-authors = ["Max Meldrum <mmeldrum@kth.se>"]
+authors = ["Max Meldrum <mmeldrum@kth.se>", "Matthew Brookes <mbrookes1304@gmail.com>"]
 edition = "2018"
 repository = "https://github.com/Max-Meldrum/faster-rs.git"
 keywords = [ "FASTER", "ffi", "experimental" ]

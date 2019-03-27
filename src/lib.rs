@@ -1,24 +1,21 @@
+extern crate bincode;
 extern crate libc;
 extern crate libfaster_sys as ffi;
 
+pub mod status;
+mod util;
+mod faster_value;
+mod impls;
 
-use std::ffi::CString;
+use crate::util::*;
+pub use crate::faster_value::FasterValue;
+
+use serde::{Serialize, Deserialize};
 use std::ffi::CStr;
+use std::ffi::CString;
 use std::fs;
 use std::io;
 use std::sync::mpsc::{channel, Sender, Receiver};
-
-pub mod status;
-pub mod util;
-use self::util::*;
-
-extern fn read_callback(sender: *mut libc::c_void, value: u64, status: u32) {
-    let boxed_sender = unsafe {Box::from_raw(sender as *mut Sender<u64>)};
-    let sender = *boxed_sender;
-    if status == status::OK.into() {
-        sender.send(value).unwrap();
-    }
-}
 
 pub struct FasterKv {
     faster_t: *mut ffi::faster_t,
@@ -38,24 +35,26 @@ impl FasterKv {
         Ok(FasterKv { faster_t: faster_t, storage_dir: saved_dir })
     }
 
-    pub fn upsert(&self, key: u64, value: u64) -> u8 {
+    pub fn upsert<T: Serialize>(&self, key: u64, value: &T) -> u8 {
+        let mut encoded = bincode::serialize(value).unwrap();
         unsafe {
-            ffi::faster_upsert(self.faster_t, key, value)
+            ffi::faster_upsert(self.faster_t, key, encoded.as_mut_ptr(), encoded.len() as u64)
         }
     }
 
-    pub fn read(&self, key: u64) -> (u8, Receiver<u64>) {
+    pub fn read<'a, T: FasterValue<'a, T> + Deserialize<'a> + Serialize>(&'a self, key: u64) -> (u8, Receiver<T>) {
         let (sender, receiver) = channel();
-        let sender_ptr: *mut Sender<u64> = Box::into_raw(Box::new(sender));
+        let sender_ptr: *mut Sender<T> = Box::into_raw(Box::new(sender));
         let status = unsafe {
-            ffi::faster_read(self.faster_t, key, Some(read_callback), sender_ptr as *mut libc::c_void)
+            ffi::faster_read(self.faster_t, key, Some(T::read_callback), sender_ptr as *mut libc::c_void)
         };
         (status, receiver)
     }
 
-    pub fn rmw(&self, key: u64, value: u64) -> u8 {
+    pub fn rmw<'a, T: FasterValue<'a, T> + Deserialize<'a> + Serialize>(&'a self, key: u64, value: &T) -> u8 {
+        let mut encoded = bincode::serialize(value).unwrap();
         unsafe {
-            ffi::faster_rmw(self.faster_t, key, value)
+            ffi::faster_rmw(self.faster_t, key, encoded.as_mut_ptr(), encoded.len() as u64, Some(T::rmw_callback))
         }
     }
 
@@ -190,10 +189,10 @@ mod tests {
             let key: u64 = 1;
             let value: u64 = 1337;
 
-            let upsert = store.upsert(key, value);
+            let upsert = store.upsert(key, &value);
             assert!((upsert == status::OK || upsert == status::PENDING) == true);
 
-            let rmw = store.rmw(key, 5 as u64);
+            let rmw = store.rmw(key, &(5 as u64));
             assert!(rmw == status::OK);
 
             assert!(store.size() > 0);
@@ -213,10 +212,10 @@ mod tests {
             let key: u64 = 1;
             let value: u64 = 1337;
 
-            let upsert = store.upsert(key, value);
+            let upsert = store.upsert(key, &value);
             assert!((upsert == status::OK || upsert == status::PENDING) == true);
 
-            let (res, recv) = store.read(key);
+            let (res, recv): (u8, Receiver<u64>) = store.read(key);
             assert!(res == status::OK);
             assert!(recv.recv().unwrap() == value);
 
@@ -232,7 +231,7 @@ mod tests {
         if let Ok(store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, String::from("storage2")) {
             let key: u64 = 1;
 
-            let (res, recv) = store.read(key);
+            let (res, recv): (u8, Receiver<u64>) = store.read(key);
             assert!(res == status::NOT_FOUND);
             assert!(recv.recv().is_err());
 
@@ -250,17 +249,17 @@ mod tests {
             let value: u64 = 1337;
             let modification: u64 = 100;
 
-            let upsert = store.upsert(key, value);
+            let upsert = store.upsert(key, &value);
             assert!((upsert == status::OK || upsert == status::PENDING) == true);
 
-            let (res, recv) = store.read(key);
+            let (res, recv): (u8, Receiver<u64>) = store.read(key);
             assert!(res == status::OK);
             assert!(recv.recv().unwrap() == value);
 
-            let rmw = store.rmw(key, modification);
+            let rmw = store.rmw(key, &modification);
             assert!((rmw == status::OK || rmw == status::PENDING) == true);
 
-            let (res, recv) = store.read(key);
+            let (res, recv): (u8, Receiver<u64>) = store.read(key);
             assert!(res == status::OK);
             assert!(recv.recv().unwrap() == value + modification);
 
@@ -277,12 +276,68 @@ mod tests {
             let key: u64 = 1;
             let modification: u64 = 100;
 
-            let rmw = store.rmw(key, modification);
+            let rmw = store.rmw(key, &modification);
             assert!((rmw == status::OK || rmw == status::PENDING) == true);
 
-            let (res, recv) = store.read(key);
+            let (res, recv): (u8, Receiver<u64>) = store.read(key);
             assert!(res == status::OK);
             assert!(recv.recv().unwrap() == modification);
+
+            match store.clean_storage() {
+                Ok(()) => assert!(true),
+                Err(_err) => assert!(false)
+            }
+        }
+    }
+
+    #[test]
+    fn faster_rmw_string() {
+        if let Ok(store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, String::from("storage5")) {
+            let key: u64 = 1;
+            let value = String::from("Hello, ");
+            let modification = String::from("World!");
+
+            let upsert = store.upsert(key, &value);
+            assert!(upsert == status::OK || upsert == status::PENDING);
+
+            let (res, recv): (u8, Receiver<String>) = store.read(key);
+            assert_eq!(res, status::OK);
+            assert_eq!(recv.recv().unwrap(), value);
+
+            let rmw = store.rmw(key, &modification);
+            assert!(rmw == status::OK || rmw == status::PENDING);
+
+            let (res, recv): (u8, Receiver<String>) = store.read(key);
+            assert_eq!(res, status::OK);
+            assert_eq!(recv.recv().unwrap(), String::from("Hello, World!"));
+
+            match store.clean_storage() {
+                Ok(()) => assert!(true),
+                Err(_err) => assert!(false)
+            }
+        }
+    }
+
+    #[test]
+    fn faster_rmw_vec() {
+        if let Ok(store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, String::from("storage6")) {
+            let key: u64 = 1;
+            let value = vec![0, 1, 2];
+            let modification = vec![3, 4, 5];
+
+            let upsert = store.upsert(key, &value);
+            assert!(upsert == status::OK || upsert == status::PENDING);
+
+            let (res, recv): (u8, Receiver<Vec<i32>>) = store.read(key);
+            assert_eq!(res, status::OK);
+            assert_eq!(recv.recv().unwrap(), value);
+
+            let rmw = store.rmw(key, &modification);
+            assert!(rmw == status::OK || rmw == status::PENDING);
+
+            let (res, recv): (u8, Receiver<Vec<i32>>) = store.read(key);
+            assert_eq!(res, status::OK);
+            assert_eq!(recv.recv().unwrap(), vec![0, 1, 2, 3, 4, 5]);
 
             match store.clean_storage() {
                 Ok(()) => assert!(true),
