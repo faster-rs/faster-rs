@@ -3,8 +3,9 @@ extern crate libc;
 extern crate libfaster_sys as ffi;
 
 pub mod status;
-pub mod util;
-pub mod faster_value;
+mod util;
+mod faster_value;
+mod impls;
 
 use crate::util::*;
 pub use crate::faster_value::FasterValue;
@@ -281,6 +282,62 @@ mod tests {
             let (res, recv): (u8, Receiver<u64>) = store.read(key);
             assert!(res == status::OK);
             assert!(recv.recv().unwrap() == modification);
+
+            match store.clean_storage() {
+                Ok(()) => assert!(true),
+                Err(_err) => assert!(false)
+            }
+        }
+    }
+
+    #[test]
+    fn faster_rmw_string() {
+        if let Ok(store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, String::from("storage5")) {
+            let key: u64 = 1;
+            let value = String::from("Hello, ");
+            let modification = String::from("World!");
+
+            let upsert = store.upsert(key, &value);
+            assert!(upsert == status::OK || upsert == status::PENDING);
+
+            let (res, recv): (u8, Receiver<String>) = store.read(key);
+            assert_eq!(res, status::OK);
+            assert_eq!(recv.recv().unwrap(), value);
+
+            let rmw = store.rmw(key, &modification);
+            assert!(rmw == status::OK || rmw == status::PENDING);
+
+            let (res, recv): (u8, Receiver<String>) = store.read(key);
+            assert_eq!(res, status::OK);
+            assert_eq!(recv.recv().unwrap(), String::from("Hello, World!"));
+
+            match store.clean_storage() {
+                Ok(()) => assert!(true),
+                Err(_err) => assert!(false)
+            }
+        }
+    }
+
+    #[test]
+    fn faster_rmw_vec() {
+        if let Ok(store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, String::from("storage6")) {
+            let key: u64 = 1;
+            let value = vec![0, 1, 2];
+            let modification = vec![3, 4, 5];
+
+            let upsert = store.upsert(key, &value);
+            assert!(upsert == status::OK || upsert == status::PENDING);
+
+            let (res, recv): (u8, Receiver<Vec<i32>>) = store.read(key);
+            assert_eq!(res, status::OK);
+            assert_eq!(recv.recv().unwrap(), value);
+
+            let rmw = store.rmw(key, &modification);
+            assert!(rmw == status::OK || rmw == status::PENDING);
+
+            let (res, recv): (u8, Receiver<Vec<i32>>) = store.read(key);
+            assert_eq!(res, status::OK);
+            assert_eq!(recv.recv().unwrap(), vec![0, 1, 2, 3, 4, 5]);
 
             match store.clean_storage() {
                 Ok(()) => assert!(true),

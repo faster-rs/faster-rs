@@ -38,15 +38,3 @@ pub trait FasterValue<'a, T: Deserialize<'a> + Serialize + FasterValue<'a, T>> {
 
     fn rmw(&self, _modification: T) -> T;
 }
-
-impl <'a> FasterValue<'a, String> for String {
-    fn rmw(&self, _modification: String) -> String {
-        unimplemented!()
-    }
-}
-
-impl <'a> FasterValue<'a, u64> for u64 {
-    fn rmw(&self, modification: u64) -> u64 {
-        self + modification
-    }
-}
