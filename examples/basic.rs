@@ -15,13 +15,13 @@ fn main() {
 
         // Upsert
         for i in 0..1000 {
-            let upsert = store.upsert(key0 + i, &(value0 + i));
+            let upsert = store.upsert(key0 + i, &(value0 + i), i);
             assert!(upsert == status::OK || upsert == status::PENDING);
         }
 
         // Read-Modify-Write
         for i in 0..1000 {
-            let rmw = store.rmw(key0 + i, &(5 as u64));
+            let rmw = store.rmw(key0 + i, &(5 as u64), i + 1000);
             assert!(rmw == status::OK || rmw == status::PENDING);
         }
 
@@ -30,7 +30,7 @@ fn main() {
         // Read
         for i in 0..1000 {
             // Note: need to provide type annotation for the Receiver
-            let (read, recv): (u8, Receiver<u64>) = store.read(key0 + i);
+            let (read, recv): (u8, Receiver<u64>) = store.read(key0 + i, i);
             assert!(read == status::OK || read == status::PENDING);
             let val = recv.recv().unwrap();
             assert_eq!(val, value0 + i + modification);
