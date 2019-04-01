@@ -1,5 +1,7 @@
 extern crate faster_kvs;
+extern crate tempfile;
 
+use tempfile::TempDir;
 use faster_kvs::FasterKv;
 use std::thread;
 use std::sync::Arc;
@@ -9,7 +11,9 @@ use std::sync::mpsc::Receiver;
 fn multi_threaded_test() {
     let table_size: u64  = 1 << 14;
     let log_size: u64 = 17179869184;
-    let store = Arc::new(FasterKv::new(table_size, log_size, String::from("test_session")).unwrap());
+    let tmp_dir = TempDir::new().unwrap();
+    let dir_path = tmp_dir.path().to_string_lossy().into_owned();
+    let store = Arc::new(FasterKv::new(table_size, log_size, dir_path).unwrap());
     let ops = 1000;
 
     let initial_value: u64 = 100;
@@ -48,10 +52,4 @@ fn multi_threaded_test() {
         let (_res, recv): (u8, Receiver<u64>) = store.read(key as u64);
         assert_eq!(recv.recv().unwrap(), expected_value);
     }
-
-    match store.clean_storage() {
-        Ok(()) => assert!(true),
-        Err(_err) => assert!(false)
-    }
-
 }
