@@ -1,12 +1,12 @@
 extern crate faster_kvs;
 extern crate tempfile;
 
-use faster_kvs::FasterKv;
 use faster_kvs::status;
-use tempfile::TempDir;
+use faster_kvs::FasterKv;
 use std::sync::mpsc::Receiver;
+use tempfile::TempDir;
 
-const TABLE_SIZE: u64  = 1 << 14;
+const TABLE_SIZE: u64 = 1 << 14;
 const LOG_SIZE: u64 = 17179869184;
 
 #[test]

@@ -1,15 +1,15 @@
 extern crate faster_kvs;
 extern crate tempfile;
 
-use tempfile::TempDir;
 use faster_kvs::FasterKv;
-use std::thread;
-use std::sync::Arc;
 use std::sync::mpsc::Receiver;
+use std::sync::Arc;
+use std::thread;
+use tempfile::TempDir;
 
 #[test]
 fn multi_threaded_test() {
-    let table_size: u64  = 1 << 14;
+    let table_size: u64 = 1 << 14;
     let log_size: u64 = 17179869184;
     let tmp_dir = TempDir::new().unwrap();
     let dir_path = tmp_dir.path().to_string_lossy().into_owned();
@@ -24,7 +24,7 @@ fn multi_threaded_test() {
     }
 
     let num_threads = 4;
-    let mut threads = vec![]; 
+    let mut threads = vec![];
     for _ in 0..num_threads {
         let store = Arc::clone(&store);
         threads.push(thread::spawn(move || {
@@ -42,7 +42,7 @@ fn multi_threaded_test() {
             store.stop_session();
         }))
     }
-    
+
     for t in threads {
         t.join().unwrap();
     }

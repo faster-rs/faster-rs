@@ -6,7 +6,7 @@ use tempfile::TempDir;
 
 #[test]
 fn single_checkpoint() {
-    let table_size: u64  = 1 << 14;
+    let table_size: u64 = 1 << 14;
     let log_size: u64 = 17179869184;
     let tmp_dir = TempDir::new().unwrap();
     let dir_path = tmp_dir.path().to_string_lossy().into_owned();
@@ -19,9 +19,8 @@ fn single_checkpoint() {
 
     let checkpoint = store.checkpoint().unwrap();
     assert_eq!(checkpoint.checked, true);
-    assert_eq!(checkpoint.token.len(), 37-1); // -1 \0
+    assert_eq!(checkpoint.token.len(), 37 - 1); // -1 \0
 }
-
 
 #[test]
 fn concurrent_checkpoints() {

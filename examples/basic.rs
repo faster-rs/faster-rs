@@ -1,10 +1,10 @@
 extern crate faster_kvs;
 
-use faster_kvs::{FasterKv, status};
+use faster_kvs::{status, FasterKv};
 use std::sync::mpsc::Receiver;
 
 fn main() {
-    const TABLE_SIZE: u64  = 1 << 14;
+    const TABLE_SIZE: u64 = 1 << 14;
     const LOG_SIZE: u64 = 17179869184;
 
     // Create a Key-Value Store
@@ -39,7 +39,7 @@ fn main() {
 
         // Clear used storage
         match store.clean_storage() {
-            Ok(()) => {},
+            Ok(()) => {}
             Err(_err) => panic!("Unable to clear FASTER directory"),
         }
     } else {

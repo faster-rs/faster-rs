@@ -1,7 +1,7 @@
 extern crate faster_kvs;
 extern crate serde_derive;
 
-use faster_kvs::{FasterKv, FasterValue,status};
+use faster_kvs::{status, FasterKv, FasterValue};
 use serde_derive::{Deserialize, Serialize};
 use std::sync::mpsc::Receiver;
 
@@ -19,13 +19,20 @@ impl FasterValue<'_, MyValue> for MyValue {
 }
 
 fn main() {
-    const TABLE_SIZE: u64  = 1 << 14;
+    const TABLE_SIZE: u64 = 1 << 14;
     const LOG_SIZE: u64 = 17179869184;
 
     // Create a Key-Value Store
-    if let Ok(store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, String::from("example_custom_values_storage")) {
+    if let Ok(store) = FasterKv::new(
+        TABLE_SIZE,
+        LOG_SIZE,
+        String::from("example_custom_values_storage"),
+    ) {
         let key: u64 = 1;
-        let value = MyValue { foo: String::from("Hello"), bar: String::from("World") };
+        let value = MyValue {
+            foo: String::from("Hello"),
+            bar: String::from("World"),
+        };
 
         // Upsert
         let upsert = store.upsert(key, &value);
@@ -41,7 +48,7 @@ fn main() {
 
         // Clear used storage
         match store.clean_storage() {
-            Ok(()) => {},
+            Ok(()) => {}
             Err(_err) => panic!("Unable to clear FASTER directory"),
         }
     } else {

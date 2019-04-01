@@ -9,7 +9,12 @@ use serde::{Deserialize, Serialize};
 use std::sync::mpsc::Sender;
 
 pub trait FasterValue<'a, T: Deserialize<'a> + Serialize + FasterValue<'a, T>> {
-    unsafe extern fn read_callback(sender: *mut libc::c_void, value: *const u8, length: u64, status: u32) {
+    unsafe extern "C" fn read_callback(
+        sender: *mut libc::c_void,
+        value: *const u8,
+        length: u64,
+        status: u32,
+    ) {
         let boxed_sender = Box::from_raw(sender as *mut Sender<T>);
         let sender = *boxed_sender;
         if status == status::OK.into() {
@@ -18,15 +23,20 @@ pub trait FasterValue<'a, T: Deserialize<'a> + Serialize + FasterValue<'a, T>> {
         }
     }
 
-    unsafe extern fn rmw_callback(
+    unsafe extern "C" fn rmw_callback(
         current: *const u8,
         length_current: u64,
         modification: *mut u8,
         length_modification: u64,
-        dst: *mut u8
+        dst: *mut u8,
     ) -> u64 {
-        let val: T = deserialize(std::slice::from_raw_parts(current, length_current as usize)).unwrap();
-        let modif = deserialize(std::slice::from_raw_parts_mut(modification, length_modification as usize)).unwrap();
+        let val: T =
+            deserialize(std::slice::from_raw_parts(current, length_current as usize)).unwrap();
+        let modif = deserialize(std::slice::from_raw_parts_mut(
+            modification,
+            length_modification as usize,
+        ))
+        .unwrap();
         let modified = val.rmw(modif);
         let encoded = bincode::serialize(&modified).unwrap();
         let size = encoded.len();

@@ -2,28 +2,32 @@ extern crate bincode;
 extern crate libc;
 extern crate libfaster_sys as ffi;
 
-pub mod status;
-mod util;
 mod faster_value;
 mod impls;
+pub mod status;
+mod util;
 
-use crate::util::*;
 pub use crate::faster_value::FasterValue;
+use crate::util::*;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::fs;
 use std::io;
-use std::sync::mpsc::{channel, Sender, Receiver};
+use std::sync::mpsc::{channel, Receiver, Sender};
 
 pub struct FasterKv {
     faster_t: *mut ffi::faster_t,
-    storage_dir: String
+    storage_dir: String,
 }
 
 impl FasterKv {
-    pub fn new(table_size: u64, log_size: u64, storage_name: String) -> Result<FasterKv, io::Error> {
+    pub fn new(
+        table_size: u64,
+        log_size: u64,
+        storage_name: String,
+    ) -> Result<FasterKv, io::Error> {
         let saved_dir = storage_name.clone();
         let storage_str = CString::new(storage_name).unwrap();
         let ptr_raw = storage_str.into_raw();
@@ -32,36 +36,60 @@ impl FasterKv {
             let _ = CString::from_raw(ptr_raw); // retake pointer to free mem
             ft
         };
-        Ok(FasterKv { faster_t: faster_t, storage_dir: saved_dir })
+        Ok(FasterKv {
+            faster_t: faster_t,
+            storage_dir: saved_dir,
+        })
     }
 
     pub fn upsert<T: Serialize>(&self, key: u64, value: &T) -> u8 {
         let mut encoded = bincode::serialize(value).unwrap();
         unsafe {
-            ffi::faster_upsert(self.faster_t, key, encoded.as_mut_ptr(), encoded.len() as u64)
+            ffi::faster_upsert(
+                self.faster_t,
+                key,
+                encoded.as_mut_ptr(),
+                encoded.len() as u64,
+            )
         }
     }
 
-    pub fn read<'a, T: FasterValue<'a, T> + Deserialize<'a> + Serialize>(&'a self, key: u64) -> (u8, Receiver<T>) {
+    pub fn read<'a, T: FasterValue<'a, T> + Deserialize<'a> + Serialize>(
+        &'a self,
+        key: u64,
+    ) -> (u8, Receiver<T>) {
         let (sender, receiver) = channel();
         let sender_ptr: *mut Sender<T> = Box::into_raw(Box::new(sender));
         let status = unsafe {
-            ffi::faster_read(self.faster_t, key, Some(T::read_callback), sender_ptr as *mut libc::c_void)
+            ffi::faster_read(
+                self.faster_t,
+                key,
+                Some(T::read_callback),
+                sender_ptr as *mut libc::c_void,
+            )
         };
         (status, receiver)
     }
 
-    pub fn rmw<'a, T: FasterValue<'a, T> + Deserialize<'a> + Serialize>(&'a self, key: u64, value: &T) -> u8 {
+    pub fn rmw<'a, T: FasterValue<'a, T> + Deserialize<'a> + Serialize>(
+        &'a self,
+        key: u64,
+        value: &T,
+    ) -> u8 {
         let mut encoded = bincode::serialize(value).unwrap();
         unsafe {
-            ffi::faster_rmw(self.faster_t, key, encoded.as_mut_ptr(), encoded.len() as u64, Some(T::rmw_callback))
+            ffi::faster_rmw(
+                self.faster_t,
+                key,
+                encoded.as_mut_ptr(),
+                encoded.len() as u64,
+                Some(T::rmw_callback),
+            )
         }
     }
 
     pub fn size(&self) -> u64 {
-        unsafe {
-            ffi::faster_size(self.faster_t)
-        }
+        unsafe { ffi::faster_size(self.faster_t) }
     }
 
     pub fn checkpoint(&self) -> Option<CheckPoint> {
@@ -70,12 +98,12 @@ impl FasterKv {
             None
         } else {
             let boxed = unsafe { Box::from_raw(result) }; // makes sure memory is dropped
-            let token_str = unsafe {CStr::from_ptr((*boxed).token)
-                .to_str()
-                .unwrap()
-                .to_owned() };
+            let token_str = unsafe { CStr::from_ptr((*boxed).token).to_str().unwrap().to_owned() };
 
-            let checkpoint = CheckPoint { checked: (*boxed).checked, token: token_str};
+            let checkpoint = CheckPoint {
+                checked: (*boxed).checked,
+                token: token_str,
+            };
             Some(checkpoint)
         }
     }
@@ -107,7 +135,11 @@ impl FasterKv {
                 };
                 session_ids_vec.push(id);
             }
-            let recover = Recover { status: (*boxed).status, version: (*boxed).version, session_ids: session_ids_vec};
+            let recover = Recover {
+                status: (*boxed).status,
+                version: (*boxed).version,
+                session_ids: session_ids_vec,
+            };
             Some(recover)
         } else {
             None
@@ -115,18 +147,13 @@ impl FasterKv {
     }
 
     pub fn complete_pending(&self, b: bool) -> () {
-        unsafe {
-            ffi::faster_complete_pending(self.faster_t, b)
-        }
+        unsafe { ffi::faster_complete_pending(self.faster_t, b) }
     }
 
     pub fn start_session(&self) -> String {
         unsafe {
             let c_guid = ffi::faster_start_session(self.faster_t);
-            let rust_str = CStr::from_ptr(c_guid)
-                .to_str()
-                .unwrap()
-                .to_owned();
+            let rust_str = CStr::from_ptr(c_guid).to_str().unwrap().to_owned();
             rust_str
         }
     }
@@ -142,9 +169,7 @@ impl FasterKv {
     }
 
     pub fn stop_session(&self) -> () {
-        unsafe {
-            ffi::faster_stop_session(self.faster_t)
-        }
+        unsafe { ffi::faster_stop_session(self.faster_t) }
     }
 
     pub fn refresh(&self) -> () {

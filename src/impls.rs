@@ -1,33 +1,37 @@
 use crate::faster_value::FasterValue;
+use serde::{Deserialize, Serialize};
 use std::ops::Add;
-use serde::{Serialize, Deserialize};
 
 macro_rules! primitive_impl {
     ($ty:ident, $method:ident $($cast:tt)*) => {
-        impl <'a> FasterValue<'a, $ty> for $ty {
+        impl<'a> FasterValue<'a, $ty> for $ty {
             #[inline]
             fn rmw(&self, modification: $ty) -> $ty {
                 $method(*self, modification)
             }
         }
-    }
+    };
 }
 
 macro_rules! owned_impl {
     ($ty:ident, $method:ident $($cast:tt)*) => {
-        impl <'a> FasterValue<'a, $ty> for $ty {
+        impl<'a> FasterValue<'a, $ty> for $ty {
             #[inline]
             fn rmw(&self, modification: $ty) -> $ty {
                 $method(self, modification)
             }
         }
-    }
+    };
 }
 
-fn rmw_bool(_old: bool, new:bool) -> bool { new }
+fn rmw_bool(_old: bool, new: bool) -> bool {
+    new
+}
 primitive_impl!(bool, rmw_bool);
 
-fn rmw_add<T: Add<Output=T>>(current: T, modification: T) -> T {current + modification}
+fn rmw_add<T: Add<Output = T>>(current: T, modification: T) -> T {
+    current + modification
+}
 primitive_impl!(isize, rmw_add);
 primitive_impl!(i8, rmw_add);
 primitive_impl!(i16, rmw_add);
@@ -41,7 +45,9 @@ primitive_impl!(u64, rmw_add);
 primitive_impl!(f32, rmw_add);
 primitive_impl!(f64, rmw_add);
 
-fn rmw_char(_old: char, new:char) -> char { new }
+fn rmw_char(_old: char, new: char) -> char {
+    new
+}
 primitive_impl!(char, rmw_char);
 
 fn rmw_string(old: &String, new: String) -> String {
@@ -51,7 +57,7 @@ fn rmw_string(old: &String, new: String) -> String {
 }
 owned_impl!(String, rmw_string);
 
-impl <'a, T: Clone + Serialize + Deserialize<'a>> FasterValue<'a, Vec<T>> for Vec<T> {
+impl<'a, T: Clone + Serialize + Deserialize<'a>> FasterValue<'a, Vec<T>> for Vec<T> {
     #[inline]
     fn rmw(&self, new: Vec<T>) -> Vec<T> {
         let mut result = Vec::with_capacity(self.len() + new.len());
