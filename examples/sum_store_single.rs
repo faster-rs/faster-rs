@@ -2,13 +2,14 @@ extern crate faster_kvs;
 
 use faster_kvs::*;
 use std::env;
+use std::sync::mpsc::Receiver;
 
-const TABLE_SIZE: u64  = 1 << 14;
+const TABLE_SIZE: u64 = 1 << 14;
 const LOG_SIZE: u64 = 17179869184;
-const NUM_OPS: u64 = 1  << 25;
+const NUM_OPS: u64 = 1 << 25;
 const REFRESH_INTERVAL: u64 = 1 << 8;
 const COMPLETE_PENDING_INTERVAL: u64 = 1 << 12;
-const CHECKPOINT_INTERVAL: u64= 1 << 20;
+const CHECKPOINT_INTERVAL: u64 = 1 << 20;
 
 // More or less a copy of the single-threaded sum_store populate/recover example from FASTER
 
@@ -18,7 +19,10 @@ fn main() {
         let operation = &args[1].to_string();
 
         if operation == "populate" {
-            println!("{}", "This may take a while, and make sure you have disk space");
+            println!(
+                "{}",
+                "This may take a while, and make sure you have disk space"
+            );
             populate();
         } else if operation == "recover" {
             if args.len() > 2 {
@@ -43,7 +47,7 @@ fn populate() -> () {
 
         for i in 0..NUM_OPS {
             let idx = i as u64;
-            store.upsert(idx, value);
+            store.upsert(idx, &value);
 
             if (idx % CHECKPOINT_INTERVAL) == 0 {
                 let check = store.checkpoint().unwrap();
@@ -66,34 +70,32 @@ fn populate() -> () {
     }
 }
 
-
 fn recover(token: String) -> () {
-        println!("Attempting to recover");
-        if let Ok(recover_store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, String::from("storage")) {
-            match recover_store.recover(token.clone(), token.clone()) {
-                Some(rec) => {
-                    println!("Recover version: {}", rec.version);
-                    println!("Recover status: {}", rec.status);
-                    println!("{:?}", rec.session_ids);
-                    recover_store.continue_session(rec.session_ids.first().cloned().unwrap());
-                    println!("Verifying recovered values!");
-                    let value: u64 = 1000;
-                    for i in 0..NUM_OPS {
-                        let idx = i as u64;
-                        let (status, recv)= recover_store.read(idx);
-                        if let Ok(val) = recv.recv() {
-                            assert_eq!(val, value);
-                        } else {
-                            println!("Failure to read with status: {}, and key: {}", status, idx);
-                        }
+    println!("Attempting to recover");
+    if let Ok(recover_store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, String::from("storage")) {
+        match recover_store.recover(token.clone(), token.clone()) {
+            Some(rec) => {
+                println!("Recover version: {}", rec.version);
+                println!("Recover status: {}", rec.status);
+                println!("{:?}", rec.session_ids);
+                recover_store.continue_session(rec.session_ids.first().cloned().unwrap());
+                println!("Verifying recovered values!");
+                let value: u64 = 1000;
+                for i in 0..NUM_OPS {
+                    let idx = i as u64;
+                    let (status, recv): (u8, Receiver<u64>) = recover_store.read(idx);
+                    if let Ok(val) = recv.recv() {
+                        assert_eq!(val, value);
+                    } else {
+                        println!("Failure to read with status: {}, and key: {}", status, idx);
                     }
-                    println!("Ok.....!");
-                    recover_store.stop_session();
-                },
-                None => println!("Recover operation failed"),
+                }
+                println!("Ok.....!");
+                recover_store.stop_session();
             }
-        } else {
-            println!("{}", "Failed to create recover store");
+            None => println!("Recover operation failed"),
         }
+    } else {
+        println!("{}", "Failed to create recover store");
+    }
 }
-
