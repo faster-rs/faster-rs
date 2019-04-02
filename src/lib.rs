@@ -42,7 +42,10 @@ impl FasterKv {
         })
     }
 
-    pub fn upsert<T: Serialize>(&self, key: u64, value: &T) -> u8 {
+    pub fn upsert<T>(&self, key: u64, value: &T, monotonic_serial_number: u64) -> u8
+    where
+        T: Serialize,
+    {
         let mut encoded = bincode::serialize(value).unwrap();
         unsafe {
             ffi::faster_upsert(
@@ -50,20 +53,22 @@ impl FasterKv {
                 key,
                 encoded.as_mut_ptr(),
                 encoded.len() as u64,
+                monotonic_serial_number,
             )
         }
     }
 
-    pub fn read<'a, T: FasterValue<'a, T> + Deserialize<'a> + Serialize>(
-        &'a self,
-        key: u64,
-    ) -> (u8, Receiver<T>) {
+    pub fn read<'a, T>(&'a self, key: u64, monotonic_serial_number: u64) -> (u8, Receiver<T>)
+    where
+        T: FasterValue<'a, T> + Deserialize<'a> + Serialize,
+    {
         let (sender, receiver) = channel();
         let sender_ptr: *mut Sender<T> = Box::into_raw(Box::new(sender));
         let status = unsafe {
             ffi::faster_read(
                 self.faster_t,
                 key,
+                monotonic_serial_number,
                 Some(T::read_callback),
                 sender_ptr as *mut libc::c_void,
             )
@@ -71,11 +76,10 @@ impl FasterKv {
         (status, receiver)
     }
 
-    pub fn rmw<'a, T: FasterValue<'a, T> + Deserialize<'a> + Serialize>(
-        &'a self,
-        key: u64,
-        value: &T,
-    ) -> u8 {
+    pub fn rmw<'a, T>(&'a self, key: u64, value: &T, monotonic_serial_number: u64) -> u8
+    where
+        T: FasterValue<'a, T> + Deserialize<'a> + Serialize,
+    {
         let mut encoded = bincode::serialize(value).unwrap();
         unsafe {
             ffi::faster_rmw(
@@ -83,6 +87,7 @@ impl FasterKv {
                 key,
                 encoded.as_mut_ptr(),
                 encoded.len() as u64,
+                monotonic_serial_number,
                 Some(T::rmw_callback),
             )
         }

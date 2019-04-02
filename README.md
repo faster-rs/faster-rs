@@ -7,6 +7,13 @@ It is probably a good idea to make sure you can compile the C++ version before y
 
 *Make sure you clone the submodules as well*, this is best done by cloning with `git clone --recurse-submodules`.
 
+## The interface
+This wrapper attempts to remain true to the original FASTER design by exposing a similar interface to that which is provided by the original C++ version. Users may define their own value types (that implement the `FasterValue` trait) and provide custom logic for Read-Modify-Write operations.
+
+
+The `Read`, `Upsert` and `RMW` operations all require a monotonic serial number to form the sequence of operations that will be persisted by FASTER. `Read` operations require a serial number so that at a CPR checkpoint boundary, FASTER guarantees that the reads before that point have accessed no data updates after the checkpoint. If persistence is not important, the serial number can safely be set to `1` for all operations (as is done in the examples above).
+
+More information about Checkpointing and Recovery is provided below the following examples.
 
 ## A basic example
 
@@ -32,13 +39,13 @@ fn main() {
 
         // Upsert
         for i in 0..1000 {
-            let upsert = store.upsert(key0 + i, &(value0 + i));
+            let upsert = store.upsert(key0 + i, &(value0 + i), i);
             assert!(upsert == status::OK || upsert == status::PENDING);
         }
 
         // Read-Modify-Write
         for i in 0..1000 {
-            let rmw = store.rmw(key0 + i, &(5 as u64));
+            let rmw = store.rmw(key0 + i, &(5 as u64), i + 1000);
             assert!(rmw == status::OK || rmw == status::PENDING);
         }
 
@@ -47,7 +54,7 @@ fn main() {
         // Read
         for i in 0..1000 {
             // Note: need to provide type annotation for the Receiver
-            let (read, recv): (u8, Receiver<u64>) = store.read(key0 + i);
+            let (read, recv): (u8, Receiver<u64>) = store.read(key0 + i, i);
             assert!(read == status::OK || read == status::PENDING);
             let val = recv.recv().unwrap();
             assert_eq!(val, value0 + i + modification);
@@ -86,7 +93,7 @@ struct MyValue {
 }
 
 impl FasterValue<'_, MyValue> for MyValue {
-    fn rmw(&self, modification: MyValue) -> MyValue {
+    fn rmw(&self, _modification: MyValue) -> MyValue {
         unimplemented!()
     }
 }
@@ -101,13 +108,13 @@ fn main() {
         let value = MyValue { foo: String::from("Hello"), bar: String::from("World") };
 
         // Upsert
-        let upsert = store.upsert(key, &value);
+        let upsert = store.upsert(key, &value, 1);
         assert!(upsert == status::OK || upsert == status::PENDING);
 
         assert!(store.size() > 0);
 
         // Note: need to provide type annotation for the Receiver
-        let (read, recv): (u8, Receiver<MyValue>) = store.read(key);
+        let (read, recv): (u8, Receiver<MyValue>) = store.read(key, 1);
         assert!(read == status::OK || read == status::PENDING);
         let val = recv.recv().unwrap();
         println!("Key: {}, Value: {:?}", key, val);
@@ -128,3 +135,17 @@ Several types already implement `FasterValue` along with providing Read-Modify-W
 * Numeric types use addition
 * Bools and Chars replace old value for new value
 * Strings and Vectors append new values (use an `upsert` to replace entire value)
+
+## Checkpoint and Recovery
+FASTER's fault tolerance is provided by [Concurrent Prefix Recovery](https://www.microsoft.com/en-us/research/uploads/prod/2019/01/cpr-sigmod19.pdf) (CPR). It provides the following semantics:
+ > If operation X is persisted, then all operations before X in the input operation sequence are persisted as well (and none after).
+
+Persisting operations is done using the `checkpoint()` function. It is also important to periodically call the `refresh()` function as it is the mechanism threads use to report forward progress to the system.
+
+Individual sessions (threads accessing FASTER) will persist a different number of operations. The most recently persisted serial number is returned by the `continue_session()` function and allows reasoning about which operations were (not) persisted. It is also the operation sequence number from which the thread should continue to provide operations after recovery. 
+
+A good demonstration of checkpointing/recovery can be found in `examples/sum_store_single.rs`. Try it out for yourself!
+```bash
+$ cargo run --example sum_store_single -- populate
+$ cargo run --example sum_store_single -- recover <checkpoint-token>
+```
