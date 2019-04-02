@@ -149,10 +149,3 @@ A good demonstration of checkpointing/recovery can be found in `examples/sum_sto
 $ cargo run --example sum_store_single -- populate
 $ cargo run --example sum_store_single -- recover <checkpoint-token>
 ```
-# Things to fix
-
-- [x] Fix so you can actually return the values from read
-- [ ] Experiment with #repr(C) structs for values rather than u64
-- [ ] Look into threading and async callbacks into Rust
-- [ ] Finish off the rest off the operations in the C interface
-- [ ] Compare performance to C++ version
