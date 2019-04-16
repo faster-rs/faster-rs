@@ -19,7 +19,8 @@ pub trait FasterValue<'a, T: Deserialize<'a> + Serialize + FasterValue<'a, T>> {
         let sender = *boxed_sender;
         if status == status::OK.into() {
             let val = deserialize(std::slice::from_raw_parts(value, length as usize)).unwrap();
-            sender.send(val).unwrap();
+            // TODO: log error
+            sender.send(val);
         }
     }
 
