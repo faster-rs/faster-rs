@@ -42,11 +42,11 @@ fn main() {
                         .required(true)
                         .help("Path to YCSB run keys"),
                 )
-                .arg(
-                    Arg::with_name("workload")
-                        .required(true)
-                        .possible_values(&["read_upsert_50_50", "rmw_100"]),
-                ),
+                .arg(Arg::with_name("workload").required(true).possible_values(&[
+                    "read_upsert_50_50",
+                    "rmw_100",
+                    "upsert_100",
+                ])),
         )
         .get_matches();
 
@@ -76,6 +76,7 @@ fn main() {
         let op_allocator = match workload {
             "read_upsert_50_50" => read_upsert5050,
             "rmw_100" => rmw_100,
+            "upsert_100" => upsert_100,
             _ => panic!("Unexpected workload specified. Options are: read_upsert_50_50, rmw_100"),
         };
 
