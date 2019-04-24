@@ -149,3 +149,15 @@ A good demonstration of checkpointing/recovery can be found in `examples/sum_sto
 $ cargo run --example sum_store_single -- populate
 $ cargo run --example sum_store_single -- recover <checkpoint-token>
 ```
+
+## Benchmarking
+It is possible to benchmark both the C-wrapper and the Rust-wrapper of FASTER. To build and run the C-benchmark follow Microsoft's instructions [here](https://github.com/Microsoft/FASTER/tree/master/cc) and then run the binary `benchmark-c`. It takes the same parameters and input format as the original benchmark.
+
+### Running the Rust benchmark
+The benchmark is written as a separate crate in the `benchmark` directory. Inside the directory run `cargo run --release -- help` to see the available options.
+
+The benchmark consists of two subcommands `cargo run --release -- [process-ycsb|run]`:
+* `process-ycsb` will take the output of the supplied YCSB file and produce an output file containing only the 8-byte key in the format expected by the Rust & C benchmarks
+* `run` will actually execute the benchmark using the supplied load and run keys. The workload and number of threads can be customised.
+
+The benchmark is very similar to the original C++ implementation so it's best to follow their instructions for setting up YCSB.
