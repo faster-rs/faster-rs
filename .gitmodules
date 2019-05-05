@@ -1,5 +1,5 @@
 [submodule "libfaster-sys/FASTER"]
     path = libfaster-sys/FASTER
-    url = git@github.com:faster-rs/FASTER.git
+    url = https://github.com/faster-rs/FASTER.git
     branch = master
 
