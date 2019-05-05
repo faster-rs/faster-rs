@@ -1,0 +1,19 @@
+trigger:
+- master
+
+jobs:
+- job: Linux
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - script: |
+      curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
+      echo "##vso[task.setvariable variable=PATH;]$PATH:$HOME/.cargo/bin"
+    displayName: 'Install rust'
+  - script: rustc --version
+  - script: |
+      sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+      sudo apt update
+      sudo apt install -y g++-7 libaio-dev uuid-dev libtbb-dev
+    displayName: 'Install FASTER depdendencies'
+  - script: cargo test
