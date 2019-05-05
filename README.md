@@ -1,4 +1,4 @@
-[![Build Status](https://dev.azure.com/max0943/max/_apis/build/status/faster-rs.faster-rs?branchName=master)](https://dev.azure.com/max0943/max/_build/latest?definitionId=1&branchName=master)
+[![Build Status](https://dev.azure.com/faster-rs/faster-rs/_apis/build/status/faster-rs.faster-rs?branchName=master)](https://dev.azure.com/faster-rs/faster-rs/_build/latest?definitionId=1&branchName=master)
 
 # Experimental FASTER wrapper for Rust
 
