@@ -7,9 +7,9 @@ jobs:
     vmImage: 'ubuntu-latest'
   steps:
   - bash: |
-    mkdir ~/.ssh
-    chmod 700 ~/.ssh
-    ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+      mkdir ~/.ssh
+      chmod 700 ~/.ssh
+      ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
   - checkout: self
   - script: |
       curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
