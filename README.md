@@ -1,3 +1,5 @@
+[![Build Status](https://dev.azure.com/max0943/max/_apis/build/status/faster-rs.faster-rs?branchName=master)](https://dev.azure.com/max0943/max/_build/latest?definitionId=1&branchName=master)
+
 # Experimental FASTER wrapper for Rust
 
 Includes experimental C interface for FASTER. It currently assumes the KEY type is u64 however the VALUE type supports arbitrary serialisable structs. This wrapper is only focusing on Linux support.
