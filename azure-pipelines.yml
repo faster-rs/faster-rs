@@ -6,6 +6,11 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   steps:
+  - bash: |
+    mkdir ~/.ssh
+    chmod 700 ~/.ssh
+    ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+  - checkout: self
   - script: |
       curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
       echo "##vso[task.setvariable variable=PATH;]$PATH:$HOME/.cargo/bin"
