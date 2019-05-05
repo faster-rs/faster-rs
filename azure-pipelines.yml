@@ -15,5 +15,7 @@ jobs:
       sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
       sudo apt update
       sudo apt install -y g++-7 libaio-dev uuid-dev libtbb-dev
+      sudo apt install -y git
     displayName: 'Install FASTER depdendencies'
+  - script: git submodule update --init --recursive
   - script: cargo test
