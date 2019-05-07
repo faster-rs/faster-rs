@@ -17,6 +17,8 @@ use std::fs;
 use std::io;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
+pub trait FasterKey<'a, T: Serialize + Deserialize<'a>> {}
+
 pub struct FasterKv {
     faster_t: *mut ffi::faster_t,
     storage_dir: String,
@@ -42,53 +44,62 @@ impl FasterKv {
         })
     }
 
-    pub fn upsert<T>(&self, key: u64, value: &T, monotonic_serial_number: u64) -> u8
+    pub fn upsert<'a, K, V>(&self, key: &K, value: &V, monotonic_serial_number: u64) -> u8
     where
-        T: Serialize,
+        K: FasterKey<'a, K> + Deserialize<'a> + Serialize,
+        V: Serialize,
     {
-        let mut encoded = bincode::serialize(value).unwrap();
+        let encoded_key = bincode::serialize(key).unwrap();
+        let mut encoded_value = bincode::serialize(value).unwrap();
         unsafe {
             ffi::faster_upsert(
                 self.faster_t,
-                key,
-                encoded.as_mut_ptr(),
-                encoded.len() as u64,
+                encoded_key.as_ptr(),
+                encoded_key.len() as u64,
+                encoded_value.as_mut_ptr(),
+                encoded_value.len() as u64,
                 monotonic_serial_number,
             )
         }
     }
 
-    pub fn read<'a, T>(&'a self, key: u64, monotonic_serial_number: u64) -> (u8, Receiver<T>)
+    pub fn read<'a, K, V>(&'a self, key: &K, monotonic_serial_number: u64) -> (u8, Receiver<V>)
     where
-        T: FasterValue<'a, T> + Deserialize<'a> + Serialize,
+        K: FasterKey<'a, K> + Deserialize<'a> + Serialize,
+        V: FasterValue<'a, V> + Deserialize<'a> + Serialize,
     {
+        let encoded_key = bincode::serialize(key).unwrap();
         let (sender, receiver) = channel();
-        let sender_ptr: *mut Sender<T> = Box::into_raw(Box::new(sender));
+        let sender_ptr: *mut Sender<V> = Box::into_raw(Box::new(sender));
         let status = unsafe {
             ffi::faster_read(
                 self.faster_t,
-                key,
+                encoded_key.as_ptr(),
+                encoded_key.len() as u64,
                 monotonic_serial_number,
-                Some(T::read_callback),
+                Some(V::read_callback),
                 sender_ptr as *mut libc::c_void,
             )
         };
         (status, receiver)
     }
 
-    pub fn rmw<'a, T>(&'a self, key: u64, value: &T, monotonic_serial_number: u64) -> u8
+    pub fn rmw<'a, K, V>(&'a self, key: &K, value: &V, monotonic_serial_number: u64) -> u8
     where
-        T: FasterValue<'a, T> + Deserialize<'a> + Serialize,
+        K: FasterKey<'a, K> + Deserialize<'a> + Serialize,
+        V: FasterValue<'a, V> + Deserialize<'a> + Serialize,
     {
+        let encoded_key = bincode::serialize(key).unwrap();
         let mut encoded = bincode::serialize(value).unwrap();
         unsafe {
             ffi::faster_rmw(
                 self.faster_t,
-                key,
+                encoded_key.as_ptr(),
+                encoded_key.len() as u64,
                 encoded.as_mut_ptr(),
                 encoded.len() as u64,
                 monotonic_serial_number,
-                Some(T::rmw_callback),
+                Some(V::rmw_callback),
             )
         }
     }

@@ -35,13 +35,13 @@ fn main() {
         };
 
         // Upsert
-        let upsert = store.upsert(key, &value, 1);
+        let upsert = store.upsert(&key, &value, 1);
         assert!(upsert == status::OK || upsert == status::PENDING);
 
         assert!(store.size() > 0);
 
         // Note: need to provide type annotation for the Receiver
-        let (read, recv): (u8, Receiver<MyValue>) = store.read(key, 1);
+        let (read, recv): (u8, Receiver<MyValue>) = store.read(&key, 1);
         assert!(read == status::OK || read == status::PENDING);
         let val = recv.recv().unwrap();
         println!("Key: {}, Value: {:?}", key, val);
