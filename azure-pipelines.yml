@@ -18,4 +18,5 @@ jobs:
       sudo apt install -y git
     displayName: 'Install FASTER depdendencies'
   - script: git submodule update --init --recursive
+  - script: cargo build
   - script: cargo test
