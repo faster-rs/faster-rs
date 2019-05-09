@@ -49,7 +49,7 @@ fn populate() -> () {
 
         for i in 0..NUM_OPS {
             let idx = i as u64;
-            store.rmw(idx % NUM_UNIQUE_KEYS, &(1 as u64), idx);
+            store.rmw(&(idx % NUM_UNIQUE_KEYS), &(1 as u64), idx);
 
             if (idx % CHECKPOINT_INTERVAL) == 0 {
                 let check = store.checkpoint().unwrap();
@@ -98,7 +98,7 @@ fn recover(token: String) -> () {
                 for i in 0..NUM_OPS {
                     let idx = i as u64;
                     let (status, recv): (u8, Receiver<u64>) =
-                        recover_store.read(idx % NUM_UNIQUE_KEYS, idx);
+                        recover_store.read(&(idx % NUM_UNIQUE_KEYS), idx);
                     if let Ok(val) = recv.recv() {
                         let expected = *expected_results
                             .get((idx % NUM_UNIQUE_KEYS) as usize)
