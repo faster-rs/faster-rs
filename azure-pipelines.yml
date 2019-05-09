@@ -9,14 +9,18 @@ jobs:
   - script: |
       curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
       echo "##vso[task.setvariable variable=PATH;]$PATH:$HOME/.cargo/bin"
-    displayName: 'Install rust'
+    displayName: 'Install Rust'
   - script: rustc --version
+    displayName: 'Check Rust version'
   - script: |
       sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
       sudo apt update
       sudo apt install -y g++-7 libaio-dev uuid-dev libtbb-dev
       sudo apt install -y git
-    displayName: 'Install FASTER depdendencies'
+    displayName: 'Install FASTER dependencies'
   - script: git submodule update --init --recursive
+    displayName: 'Clone FASTER repo'
   - script: cargo build
+    displayName: 'Build'
   - script: cargo test
+    displayName: 'Test'
