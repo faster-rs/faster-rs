@@ -1,7 +1,7 @@
-extern crate faster_kvs;
+extern crate faster_rs;
 extern crate serde_derive;
 
-use faster_kvs::{status, FasterKv};
+use faster_rs::{status, FasterKv};
 use serde_derive::{Deserialize, Serialize};
 use std::sync::mpsc::Receiver;
 

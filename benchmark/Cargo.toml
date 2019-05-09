@@ -5,7 +5,7 @@ authors = ["Matthew Brookes <mbrookes1304@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-faster_kvs = { path = "../" }
+faster-rs= { path = "../" }
 clap = "2.33.0"
 hwloc = "0.3.0"
 libc = "0.2"

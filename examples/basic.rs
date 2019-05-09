@@ -1,6 +1,6 @@
-extern crate faster_kvs;
+extern crate faster_rs;
 
-use faster_kvs::{status, FasterKv};
+use faster_rs::{status, FasterKv};
 use std::sync::mpsc::Receiver;
 
 fn main() {

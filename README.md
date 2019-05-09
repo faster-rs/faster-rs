@@ -4,8 +4,12 @@
 
 Includes experimental C interface for FASTER. It is a generic implementation of FASTER that allows arbitrary Key-Value pairs to be stored. This wrapper is only focusing on Linux support.
 
-
-It is probably a good idea to make sure you can compile the C++ version before you start playing around with this wrapper.
+Install Dependencies (Ubuntu):
+```
+$ add-apt-repository -y ppa:ubuntu-toolchain-r/test
+$ apt update
+$ apt install -y g++-7 libaio-dev uuid-dev libtbb-dev
+```
 
 *Make sure you clone the submodules as well*, this is best done by cloning with `git clone --recurse-submodules`.
 
@@ -24,9 +28,9 @@ The following example shows the creation of a FASTER Key-Value Store and basic o
 Try it out by running `cargo run --example basic`.
 
 ```rust,no_run
-extern crate faster_kvs;
+extern crate faster_rs;
 
-use faster_kvs::{status, FasterKv};
+use faster_rs::{status, FasterKv};
 use std::sync::mpsc::Receiver;
 
 fn main() {
@@ -80,10 +84,10 @@ fn main() {
 The following example shows a basic struct being used as a key. Try it out by running `cargo run --example custom_keys`.
 
 ```rust,no-run
-extern crate faster_kvs;
+extern crate faster_rs;
 extern crate serde_derive;
 
-use faster_kvs::{status, FasterKv};
+use faster_rs::{status, FasterKv};
 use serde_derive::{Deserialize, Serialize};
 use std::sync::mpsc::Receiver;
 
@@ -140,10 +144,10 @@ fn main() {
 The following example shows a basic struct being used as a value. Try it out by running `cargo run --example custom_values`.
 
 ```rust,no_run
-extern crate faster_kvs;
+extern crate faster_rs;
 extern crate serde_derive;
 
-use faster_kvs::{status, FasterKv, FasterValue};
+use faster_rs::{status, FasterKv, FasterValue};
 use serde_derive::{Deserialize, Serialize};
 use std::sync::mpsc::Receiver;
 

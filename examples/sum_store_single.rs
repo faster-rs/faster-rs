@@ -1,6 +1,6 @@
-extern crate faster_kvs;
+extern crate faster_rs;
 
-use faster_kvs::*;
+use faster_rs::*;
 use std::env;
 use std::sync::mpsc::Receiver;
 

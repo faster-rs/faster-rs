@@ -1,7 +1,7 @@
-extern crate faster_kvs;
+extern crate faster_rs;
 extern crate tempfile;
 
-use faster_kvs::FasterKv;
+use faster_rs::FasterKv;
 use tempfile::TempDir;
 
 #[test]

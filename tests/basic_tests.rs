@@ -1,8 +1,7 @@
-extern crate faster_kvs;
+extern crate faster_rs;
 extern crate tempfile;
 
-use faster_kvs::status;
-use faster_kvs::FasterKv;
+use faster_rs::{status, FasterKv};
 use std::sync::mpsc::Receiver;
 use tempfile::TempDir;
 

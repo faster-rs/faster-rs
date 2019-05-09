@@ -2,7 +2,7 @@ extern crate clap;
 
 use benchmark::*;
 use clap::{App, Arg, SubCommand};
-use faster_kvs::FasterKv;
+use faster_rs::FasterKv;
 use std::sync::Arc;
 
 fn main() {

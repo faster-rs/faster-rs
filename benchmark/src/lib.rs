@@ -2,7 +2,7 @@ extern crate hwloc;
 extern crate libc;
 extern crate regex;
 
-use faster_kvs::FasterKv;
+use faster_rs::FasterKv;
 use hwloc::{CpuSet, ObjectType, Topology, CPUBIND_THREAD};
 use regex::Regex;
 use std::fs::File;
@@ -11,6 +11,7 @@ use std::os::unix::prelude::FileExt;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier, Mutex};
 use std::time::{Duration, Instant};
+use std::sync::mpsc::Receiver;
 
 const K_CHECKPOINT_SECONDS: u64 = 30;
 const K_COMPLETE_PENDING_INTERVAL: usize = 1600;
@@ -160,7 +161,7 @@ pub fn populate_store(store: &Arc<FasterKv>, keys: &Arc<Vec<u64>>, num_threads: 
                             store.complete_pending(false);
                         }
                     }
-                    store.upsert(*keys.get(i as usize).unwrap(), &42, i as u64);
+                    store.upsert(&*keys.get(i as usize).unwrap(), &42, i as u64);
                 }
                 chunk_idx = idx.fetch_add(K_CHUNK_SIZE, Ordering::SeqCst);
             }
@@ -232,15 +233,15 @@ pub fn run_benchmark<F: Fn(usize) -> Operation + Send + Copy + 'static>(
                             }
                             match op_allocator(i) {
                                 Operation::Read => {
-                                    store.read::<i32>(*keys.get(i).unwrap(), 1);
+                                    let (_, _): (u8, Receiver<i32>) = store.read(&*keys.get(i).unwrap(), 1);
                                     reads += 1;
                                 }
                                 Operation::Upsert => {
-                                    store.upsert(*keys.get(i).unwrap(), &42, 1);
+                                    store.upsert(&*keys.get(i).unwrap(), &42, 1);
                                     upserts += 1;
                                 }
                                 Operation::Rmw => {
-                                    store.rmw(*keys.get(i).unwrap(), &5, 1);
+                                    store.rmw(&*keys.get(i).unwrap(), &5, 1);
                                     rmws += 1;
                                 }
                             }
