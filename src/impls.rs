@@ -3,13 +3,13 @@ use crate::FasterKey;
 use serde::{Deserialize, Serialize};
 use std::ops::Add;
 
-impl<'a, T> FasterKey<'a, T> for T where T: Serialize + Deserialize<'a> {}
+impl<T> FasterKey for T where T: Serialize + Deserialize<'static> {}
 
 macro_rules! primitive_impl {
     ($ty:ident, $method:ident $($cast:tt)*) => {
-        impl<'a> FasterValue<'a, $ty> for $ty {
+        impl FasterValue for $ty {
             #[inline]
-            fn rmw(&self, modification: $ty) -> $ty {
+            fn rmw(&self, modification: Self) -> Self {
                 $method(*self, modification)
             }
         }
@@ -18,9 +18,9 @@ macro_rules! primitive_impl {
 
 macro_rules! owned_impl {
     ($ty:ident, $method:ident $($cast:tt)*) => {
-        impl<'a> FasterValue<'a, $ty> for $ty {
+        impl FasterValue for $ty {
             #[inline]
-            fn rmw(&self, modification: $ty) -> $ty {
+            fn rmw(&self, modification: Self) -> Self {
                 $method(self, modification)
             }
         }
@@ -60,7 +60,7 @@ fn rmw_string(old: &String, new: String) -> String {
 }
 owned_impl!(String, rmw_string);
 
-impl<'a, T: Clone + Serialize + Deserialize<'a>> FasterValue<'a, Vec<T>> for Vec<T> {
+impl<T: Clone + Serialize + Deserialize<'static>> FasterValue for Vec<T> {
     #[inline]
     fn rmw(&self, new: Vec<T>) -> Vec<T> {
         let mut result = Vec::with_capacity(self.len() + new.len());
