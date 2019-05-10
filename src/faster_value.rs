@@ -44,7 +44,7 @@ pub trait FasterValue: Deserialize<'static> + Serialize {
         ))
         .unwrap();
         let modified = val.rmw(modif);
-        let encoded = bincode::serialize(&modified).unwrap();
+        let encoded = bincode::serialize::<T>(&modified).unwrap();
         let size = encoded.len();
         if dst != std::ptr::null_mut() {
             encoded.as_ptr().copy_to(dst, size);
