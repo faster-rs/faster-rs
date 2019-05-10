@@ -20,7 +20,9 @@ jobs:
     displayName: 'Install FASTER dependencies'
   - script: git submodule update --init --recursive
     displayName: 'Clone FASTER repo'
-  - script: cargo build
+  - script: |
+      cargo build
+      cargo build --examples
     displayName: 'Build'
   - script: cargo test
     displayName: 'Test'
