@@ -1,5 +1,5 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/faster-rs/faster-rs)
-[![Cargo](https://img.shields.io/badge/crates.io-0.2.0-orange.svg)](https://crates.io/crates/faster-rs)
+[![Cargo](https://img.shields.io/badge/crates.io-0.3.0-orange.svg)](https://crates.io/crates/faster-rs)
 [![Build Status](https://dev.azure.com/faster-rs/faster-rs/_apis/build/status/faster-rs.faster-rs?branchName=master)](https://dev.azure.com/faster-rs/faster-rs/_build/latest?definitionId=1&branchName=master)
 
 # Experimental FASTER wrapper for Rust
@@ -165,7 +165,7 @@ struct MyValue {
     bar: String,
 }
 
-impl FasterValue<'_, MyValue> for MyValue {
+impl FasterValue for MyValue {
     fn rmw(&self, _modification: MyValue) -> MyValue {
         unimplemented!()
     }

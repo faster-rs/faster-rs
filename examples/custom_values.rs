@@ -12,7 +12,7 @@ struct MyValue {
     bar: String,
 }
 
-impl FasterValue<'_, MyValue> for MyValue {
+impl FasterValue for MyValue {
     fn rmw(&self, _modification: MyValue) -> MyValue {
         unimplemented!()
     }

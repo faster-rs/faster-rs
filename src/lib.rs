@@ -17,7 +17,7 @@ use std::fs;
 use std::io;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
-pub trait FasterKey<'a, T: Serialize + Deserialize<'a>> {}
+pub trait FasterKey: Serialize + Deserialize<'static> {}
 
 pub struct FasterKv {
     faster_t: *mut ffi::faster_t,
@@ -44,10 +44,10 @@ impl FasterKv {
         })
     }
 
-    pub fn upsert<'a, K, V>(&self, key: &K, value: &V, monotonic_serial_number: u64) -> u8
+    pub fn upsert<K, V>(&self, key: &K, value: &V, monotonic_serial_number: u64) -> u8
     where
-        K: FasterKey<'a, K> + Deserialize<'a> + Serialize,
-        V: Serialize,
+        K: FasterKey,
+        V: FasterValue,
     {
         let encoded_key = bincode::serialize(key).unwrap();
         let mut encoded_value = bincode::serialize(value).unwrap();
@@ -63,10 +63,10 @@ impl FasterKv {
         }
     }
 
-    pub fn read<'a, K, V>(&'a self, key: &K, monotonic_serial_number: u64) -> (u8, Receiver<V>)
+    pub fn read<K, V>(&self, key: &K, monotonic_serial_number: u64) -> (u8, Receiver<V>)
     where
-        K: FasterKey<'a, K> + Deserialize<'a> + Serialize,
-        V: FasterValue<'a, V> + Deserialize<'a> + Serialize,
+        K: FasterKey,
+        V: FasterValue,
     {
         let encoded_key = bincode::serialize(key).unwrap();
         let (sender, receiver) = channel();
@@ -77,17 +77,17 @@ impl FasterKv {
                 encoded_key.as_ptr(),
                 encoded_key.len() as u64,
                 monotonic_serial_number,
-                Some(V::read_callback),
+                Some(V::read_callback::<V>),
                 sender_ptr as *mut libc::c_void,
             )
         };
         (status, receiver)
     }
 
-    pub fn rmw<'a, K, V>(&'a self, key: &K, value: &V, monotonic_serial_number: u64) -> u8
+    pub fn rmw<K, V>(&self, key: &K, value: &V, monotonic_serial_number: u64) -> u8
     where
-        K: FasterKey<'a, K> + Deserialize<'a> + Serialize,
-        V: FasterValue<'a, V> + Deserialize<'a> + Serialize,
+        K: FasterKey,
+        V: FasterValue,
     {
         let encoded_key = bincode::serialize(key).unwrap();
         let mut encoded = bincode::serialize(value).unwrap();
@@ -99,7 +99,7 @@ impl FasterKv {
                 encoded.as_mut_ptr(),
                 encoded.len() as u64,
                 monotonic_serial_number,
-                Some(V::rmw_callback),
+                Some(V::rmw_callback::<V>),
             )
         }
     }

@@ -1,7 +1,7 @@
 [package]
 name = "libfaster-sys"
 description = "Bindings for FASTER"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Max Meldrum <mmeldrum@kth.se>", "Matthew Brookes <mbrookes1304@gmail.com>"]
 edition = "2018"
 repository = "https://github.com/faster-rs/faster-rs.git"
