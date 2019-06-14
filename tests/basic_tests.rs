@@ -92,3 +92,75 @@ fn faster_rmw_without_upsert() {
     assert!(res == status::OK);
     assert!(recv.recv().unwrap() == modification);
 }
+
+#[test]
+fn faster_rmw_string() {
+    let tmp_dir = TempDir::new().unwrap();
+    let dir_path = tmp_dir.path().to_string_lossy().into_owned();
+    let store = FasterKv::new(TABLE_SIZE, LOG_SIZE, dir_path).unwrap();
+    let key: u64 = 1;
+    let value = String::from("Hello, ");
+    let modification = String::from("World!");
+
+    let upsert = store.upsert(&key, &value, 1);
+    assert!(upsert == status::OK || upsert == status::PENDING);
+
+    let (res, recv): (u8, Receiver<String>) = store.read(&key, 1);
+    assert_eq!(res, status::OK);
+    assert_eq!(recv.recv().unwrap(), value);
+
+    let rmw = store.rmw(&key, &modification, 1);
+    assert!(rmw == status::OK || rmw == status::PENDING);
+
+    let (res, recv): (u8, Receiver<String>) = store.read(&key, 1);
+    assert_eq!(res, status::OK);
+    assert_eq!(recv.recv().unwrap(), String::from("Hello, World!"));
+}
+
+#[test]
+fn faster_rmw_vec() {
+    let tmp_dir = TempDir::new().unwrap();
+    let dir_path = tmp_dir.path().to_string_lossy().into_owned();
+    let store = FasterKv::new(TABLE_SIZE, LOG_SIZE, dir_path).unwrap();
+    let key: u64 = 1;
+    let value = vec![0, 1, 2];
+    let modification = vec![3, 4, 5];
+    let modification2 = vec![6, 7, 8, 9, 10];
+
+    let upsert = store.upsert(&key, &value, 1);
+    assert!(upsert == status::OK || upsert == status::PENDING);
+
+    let (res, recv): (u8, Receiver<Vec<i32>>) = store.read(&key, 1);
+    assert_eq!(res, status::OK);
+    assert_eq!(recv.recv().unwrap(), value);
+
+    let rmw = store.rmw(&key, &modification, 1);
+    assert!(rmw == status::OK || rmw == status::PENDING);
+
+    let (res, recv): (u8, Receiver<Vec<i32>>) = store.read(&key, 1);
+    assert_eq!(res, status::OK);
+    assert_eq!(recv.recv().unwrap(), vec![0, 1, 2, 3, 4, 5]);
+
+    let rmw = store.rmw(&key, &modification2, 1);
+    assert!(rmw == status::OK || rmw == status::PENDING);
+
+    let (res, recv): (u8, Receiver<Vec<i32>>) = store.read(&key, 1);
+    assert_eq!(res, status::OK);
+    assert_eq!(recv.recv().unwrap(), vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+}
+
+#[test]
+fn faster_rmw_grow_string() {
+    let store = FasterKv::new_in_memory(TABLE_SIZE, LOG_SIZE);
+    let key = String::from("growing_string");
+    let final_string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    for i in 0..final_string.len() {
+        let letter: String = final_string.get(i..i+1).unwrap().to_string();
+        store.rmw(&key, &letter, 1);
+    }
+
+    let (res, recv): (u8, Receiver<String>) = store.read(&key, 1);
+    assert_eq!(res, status::OK);
+    assert_eq!(recv.recv().unwrap(), final_string);
+
+}
