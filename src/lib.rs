@@ -124,6 +124,38 @@ impl FasterKv {
         }
     }
 
+    pub fn checkpoint_index(&self) -> Option<CheckPoint> {
+        let result = unsafe { ffi::faster_checkpoint_index(self.faster_t) };
+        if result.is_null() {
+            None
+        } else {
+            let boxed = unsafe { Box::from_raw(result) }; // makes sure memory is dropped
+            let token_str = unsafe { CStr::from_ptr((*boxed).token).to_str().unwrap().to_owned() };
+
+            let checkpoint = CheckPoint {
+                checked: (*boxed).checked,
+                token: token_str,
+            };
+            Some(checkpoint)
+        }
+    }
+
+    pub fn checkpoint_hybrid_log(&self) -> Option<CheckPoint> {
+        let result = unsafe { ffi::faster_checkpoint_hybrid_log(self.faster_t) };
+        if result.is_null() {
+            None
+        } else {
+            let boxed = unsafe { Box::from_raw(result) }; // makes sure memory is dropped
+            let token_str = unsafe { CStr::from_ptr((*boxed).token).to_str().unwrap().to_owned() };
+
+            let checkpoint = CheckPoint {
+                checked: (*boxed).checked,
+                token: token_str,
+            };
+            Some(checkpoint)
+        }
+    }
+
     pub fn recover(&self, index_token: String, hybrid_log_token: String) -> Option<Recover> {
         let index_token_c = CString::new(index_token).unwrap();
         let index_token_ptr = index_token_c.into_raw();
