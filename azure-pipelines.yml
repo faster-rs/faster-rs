@@ -36,6 +36,7 @@ jobs:
     condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/master'))
     displayName: 'Deploy libfaster-sys'
   - script: |
+      sleep 2m
       cargo login $PSWD
       cargo update
       cargo publish
