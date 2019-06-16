@@ -63,6 +63,8 @@ fn populate() -> () {
             }
         }
 
+        println!("Dumping distribution");
+        store.dump_distribution();
         println!("Stopping Session {}", session);
         store.complete_pending(true);
         store.stop_session();
