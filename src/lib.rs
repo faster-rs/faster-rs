@@ -226,6 +226,12 @@ impl FasterKv {
         }
     }
 
+    pub fn dump_distribution(&self) -> () {
+        unsafe {
+            ffi::faster_dump_distribution(self.faster_t);
+        }
+    }
+
     // Warning: Calling this will remove the stored data
     pub fn clean_storage(&self) -> std::io::Result<()> {
         fs::remove_dir_all(&self.storage_dir)?;
