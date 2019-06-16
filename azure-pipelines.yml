@@ -31,9 +31,15 @@ jobs:
       pushd libfaster-sys/
       cargo publish
       popd
+    env:
+      PSWD: $(crates.io)
+    condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/master'))
+    displayName: 'Deploy libfaster-sys'
+  - script: |
+      cargo login $PSWD
       cargo update
       cargo publish
     env:
       PSWD: $(crates.io)
     condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/master'))
-    displayName: 'Deploy'
+    displayName: 'Deploy faster-rs'
