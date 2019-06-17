@@ -64,7 +64,7 @@ pub fn generate_sequential_keys(out_file: &str, workload: &str) {
     };
 
     for i in 0..num_keys {
-        output.write(&(i as u64).to_be_bytes()).unwrap();
+        output.write(&((i % K_INIT_COUNT) as u64).to_be_bytes()).unwrap();
     }
 }
 
