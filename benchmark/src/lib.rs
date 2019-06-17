@@ -9,9 +9,9 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::prelude::FileExt;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Barrier, Mutex};
 use std::time::{Duration, Instant};
-use std::sync::mpsc::Receiver;
 
 const K_CHECKPOINT_SECONDS: u64 = 30;
 const K_COMPLETE_PENDING_INTERVAL: usize = 1600;
@@ -52,6 +52,19 @@ pub fn process_ycsb(input_file: &str, output_file: &str) {
             let num: u64 = cap[1].parse().expect("Unable to parse uid");
             output.write(&num.to_be_bytes()).unwrap();
         }
+    }
+}
+
+pub fn generate_sequential_keys(out_file: &str, workload: &str) {
+    let mut output = File::create(out_file).expect("Unable to create output file");
+    let num_keys = match workload {
+        "load" => K_INIT_COUNT,
+        "run" => K_TXN_COUNT,
+        _ => panic!("Must specify load or run for generating sequential keys"),
+    };
+
+    for i in 0..num_keys {
+        output.write(&(i as u64).to_be_bytes()).unwrap();
     }
 }
 
@@ -233,7 +246,8 @@ pub fn run_benchmark<F: Fn(usize) -> Operation + Send + Copy + 'static>(
                             }
                             match op_allocator(i) {
                                 Operation::Read => {
-                                    let (_, _): (u8, Receiver<i32>) = store.read(&*keys.get(i).unwrap(), 1);
+                                    let (_, _): (u8, Receiver<i32>) =
+                                        store.read(&*keys.get(i).unwrap(), 1);
                                     reads += 1;
                                 }
                                 Operation::Upsert => {

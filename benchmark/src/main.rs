@@ -48,6 +48,22 @@ fn main() {
                     "upsert_100",
                 ])),
         )
+        .subcommand(
+            SubCommand::with_name("generate-keys")
+                .about("Generate sequential keys")
+                .arg(
+                    Arg::with_name("load/run")
+                        .required(true)
+                        .takes_value(true)
+                        .possible_values(&["load", "run"])
+                        .help("Generate keys for load or run"),
+                )
+                .arg(
+                    Arg::with_name("output")
+                        .required(true)
+                        .help("Path to output file"),
+                ),
+        )
         .get_matches();
 
     if let Some(matches) = matches.subcommand_matches("process-ycsb") {
@@ -95,5 +111,14 @@ fn main() {
             Ok(_) => { /*no-op*/ }
             Err(_) => eprintln!("Unable to clear storage"),
         }
+    } else if let Some(matches) = matches.subcommand_matches("generate-keys") {
+        let output_file = matches
+            .value_of("output")
+            .expect("Output file not specified");
+        let workload = matches
+            .value_of("load/run")
+            .expect("Must specify load or run");
+        println!("Generating sequential keys");
+        generate_sequential_keys(output_file, workload);
     }
 }
