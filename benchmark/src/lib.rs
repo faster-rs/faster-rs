@@ -64,7 +64,9 @@ pub fn generate_sequential_keys(out_file: &str, workload: &str) {
     };
 
     for i in 0..num_keys {
-        output.write(&((i % K_INIT_COUNT) as u64).to_be_bytes()).unwrap();
+        output
+            .write(&((i % K_INIT_COUNT) as u64).to_be_bytes())
+            .unwrap();
     }
 }
 
@@ -192,7 +194,7 @@ pub fn run_benchmark<F: Fn(usize) -> Operation + Send + Copy + 'static>(
     keys: &Arc<Vec<u64>>,
     num_threads: u8,
     op_allocator: F,
-) {
+) -> usize {
     let topo = Arc::new(Mutex::new(Topology::new()));
     let idx = Arc::new(AtomicUsize::new(0));
     let done = Arc::new(AtomicBool::new(false));
@@ -307,13 +309,13 @@ pub fn run_benchmark<F: Fn(usize) -> Operation + Send + Copy + 'static>(
         total_counts.3 += duration;
     }
 
+    let ops_per_second_per_thread = (total_counts.0 + total_counts.1 + total_counts.2)
+        / (total_counts.3 as usize / K_NANOS_PER_SECOND);
+
     println!(
         "Finished benchmark: {} checkpoints, {} reads, {} writes, {} rmws. {} ops/second/thread",
-        num_checkpoints,
-        total_counts.0,
-        total_counts.1,
-        total_counts.2,
-        (total_counts.0 + total_counts.1 + total_counts.2)
-            / (total_counts.3 as usize / K_NANOS_PER_SECOND)
-    )
+        num_checkpoints, total_counts.0, total_counts.1, total_counts.2, ops_per_second_per_thread
+    );
+
+    ops_per_second_per_thread
 }

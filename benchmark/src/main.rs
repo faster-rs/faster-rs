@@ -3,6 +3,7 @@ extern crate clap;
 use benchmark::*;
 use clap::{App, Arg, SubCommand};
 use faster_rs::FasterKv;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 fn main() {
@@ -32,6 +33,25 @@ fn main() {
                         .display_order(1)
                         .help("Number of threads to use"),
                 )
+                .arg(
+                    Arg::with_name("load")
+                        .required(true)
+                        .help("Path to YCSB load keys"),
+                )
+                .arg(
+                    Arg::with_name("run")
+                        .required(true)
+                        .help("Path to YCSB run keys"),
+                )
+                .arg(Arg::with_name("workload").required(true).possible_values(&[
+                    "read_upsert_50_50",
+                    "rmw_100",
+                    "upsert_100",
+                ])),
+        )
+        .subcommand(
+            SubCommand::with_name("run-all")
+                .about("Run benchmark with different thread configurations")
                 .arg(
                     Arg::with_name("load")
                         .required(true)
@@ -120,5 +140,48 @@ fn main() {
             .expect("Must specify load or run");
         println!("Generating sequential keys");
         generate_sequential_keys(output_file, workload);
+    } else if let Some(matches) = matches.subcommand_matches("run-all") {
+        let load_keys_file = matches
+            .value_of("load")
+            .expect("File containing load transactions not specified");
+        let run_keys_file = matches
+            .value_of("run")
+            .expect("File containing run transactions not specified");
+        let workload = matches
+            .value_of("workload")
+            .expect("Workload not specified");
+        let op_allocator = match workload {
+            "read_upsert_50_50" => read_upsert5050,
+            "rmw_100" => rmw_100,
+            "upsert_100" => upsert_100,
+            _ => panic!("Unexpected workload specified. Options are: read_upsert_50_50, rmw_100"),
+        };
+
+        let table_size: u64 = 134217728;
+        let log_size: u64 = 17179869184;
+        let dir_path = String::from("benchmark_store");
+        let (load_keys, txn_keys) = load_files(load_keys_file, run_keys_file);
+        let load_keys = Arc::new(load_keys);
+        let txn_keys = Arc::new(txn_keys);
+
+        let thread_configurations = vec![1, 2, 4, 8, 16, 32];
+        let mut benchmark_results = HashMap::new();
+
+        for num_threads in thread_configurations {
+            let store = Arc::new(FasterKv::new(table_size, log_size, dir_path.clone()).unwrap());
+            println!("Populating datastore");
+            populate_store(&store, &load_keys, num_threads);
+            println!("Beginning benchmark");
+            let result = run_benchmark(&store, &txn_keys, num_threads, op_allocator);
+            benchmark_results.insert(num_threads, result);
+            match store.clean_storage() {
+                Ok(_) => { /*no-op*/ }
+                Err(_) => eprintln!("Unable to clear storage"),
+            }
+        }
+
+        for (num_threads, result) in benchmark_results {
+            println!("{} threads: {} ops/second/thread", num_threads, result);
+        }
     }
 }
