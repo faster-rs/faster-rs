@@ -78,7 +78,7 @@ fn recover(token: String) -> () {
     println!("Attempting to recover");
     if let Ok(recover_store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, STORAGE_DIR.to_string()) {
         match recover_store.recover(token.clone(), token.clone()) {
-            Some(rec) => {
+            Ok(rec) => {
                 println!("Recover version: {}", rec.version);
                 println!("Recover status: {}", rec.status);
                 println!("Recovered sessions: {:?}", rec.session_ids);
@@ -119,7 +119,7 @@ fn recover(token: String) -> () {
                 println!("{} incorrect recoveries", incorrect);
                 recover_store.stop_session();
             }
-            None => println!("Recover operation failed"),
+            Err(_) => println!("Recover operation failed"),
         }
     } else {
         println!("{}", "Failed to create recover store");

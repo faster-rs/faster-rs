@@ -11,18 +11,46 @@ pub use crate::faster_value::FasterValue;
 use crate::util::*;
 
 use serde::{Deserialize, Serialize};
+use std::error::Error;
 use std::ffi::CStr;
 use std::ffi::CString;
-use std::fs;
 use std::io;
 use std::sync::mpsc::{channel, Receiver, Sender};
+use std::{fmt, fs};
 
 pub trait FasterKey: Serialize + Deserialize<'static> {}
 
 pub struct FasterKv {
     faster_t: *mut ffi::faster_t,
-    storage_dir: String,
+    storage_dir: Option<String>,
 }
+
+#[derive(Debug)]
+pub enum FasterError {
+    IOError(io::Error),
+    InvalidType,
+    RecoveryError,
+    CheckpointError,
+}
+
+impl fmt::Display for FasterError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            FasterError::IOError(err) => write!(f, "{}", err.description()),
+            FasterError::InvalidType => write!(f, "Cannot call method with in-memory FasterKv"),
+            FasterError::RecoveryError => write!(f, "Failed to recover"),
+            FasterError::CheckpointError => write!(f, "Checkpoint failed"),
+        }
+    }
+}
+
+impl From<io::Error> for FasterError {
+    fn from(e: io::Error) -> Self {
+        FasterError::IOError(e)
+    }
+}
+
+impl Error for FasterError {}
 
 impl FasterKv {
     pub fn new(
@@ -40,8 +68,16 @@ impl FasterKv {
         };
         Ok(FasterKv {
             faster_t: faster_t,
-            storage_dir: saved_dir,
+            storage_dir: Some(saved_dir),
         })
+    }
+
+    pub fn new_in_memory(table_size: u64, log_size: u64) -> FasterKv {
+        let faster_t = unsafe { ffi::faster_open(table_size, log_size) };
+        FasterKv {
+            faster_t,
+            storage_dir: None,
+        }
     }
 
     pub fn upsert<K, V>(&self, key: &K, value: &V, monotonic_serial_number: u64) -> u8
@@ -108,55 +144,80 @@ impl FasterKv {
         unsafe { ffi::faster_size(self.faster_t) }
     }
 
-    pub fn checkpoint(&self) -> Option<CheckPoint> {
+    pub fn checkpoint(&self) -> Result<CheckPoint, FasterError> {
+        if self.storage_dir.is_none() {
+            return Err(FasterError::InvalidType);
+        }
+
         let result = unsafe { ffi::faster_checkpoint(self.faster_t) };
-        if result.is_null() {
-            None
-        } else {
-            let boxed = unsafe { Box::from_raw(result) }; // makes sure memory is dropped
-            let token_str = unsafe { CStr::from_ptr((*boxed).token).to_str().unwrap().to_owned() };
+        match result.is_null() {
+            true => Err(FasterError::CheckpointError),
+            false => {
+                let boxed = unsafe { Box::from_raw(result) }; // makes sure memory is dropped
+                let token_str =
+                    unsafe { CStr::from_ptr((*boxed).token).to_str().unwrap().to_owned() };
 
-            let checkpoint = CheckPoint {
-                checked: (*boxed).checked,
-                token: token_str,
-            };
-            Some(checkpoint)
+                let checkpoint = CheckPoint {
+                    checked: (*boxed).checked,
+                    token: token_str,
+                };
+                Ok(checkpoint)
+            }
         }
     }
 
-    pub fn checkpoint_index(&self) -> Option<CheckPoint> {
-        let result = unsafe { ffi::faster_checkpoint_index(self.faster_t) };
-        if result.is_null() {
-            None
-        } else {
-            let boxed = unsafe { Box::from_raw(result) }; // makes sure memory is dropped
-            let token_str = unsafe { CStr::from_ptr((*boxed).token).to_str().unwrap().to_owned() };
+    pub fn checkpoint_index(&self) -> Result<CheckPoint, FasterError> {
+        if self.storage_dir.is_none() {
+            return Err(FasterError::InvalidType);
+        }
 
-            let checkpoint = CheckPoint {
-                checked: (*boxed).checked,
-                token: token_str,
-            };
-            Some(checkpoint)
+        let result = unsafe { ffi::faster_checkpoint(self.faster_t) };
+        match result.is_null() {
+            true => Err(FasterError::CheckpointError),
+            false => {
+                let boxed = unsafe { Box::from_raw(result) }; // makes sure memory is dropped
+                let token_str =
+                    unsafe { CStr::from_ptr((*boxed).token).to_str().unwrap().to_owned() };
+
+                let checkpoint = CheckPoint {
+                    checked: (*boxed).checked,
+                    token: token_str,
+                };
+                Ok(checkpoint)
+            }
         }
     }
 
-    pub fn checkpoint_hybrid_log(&self) -> Option<CheckPoint> {
-        let result = unsafe { ffi::faster_checkpoint_hybrid_log(self.faster_t) };
-        if result.is_null() {
-            None
-        } else {
-            let boxed = unsafe { Box::from_raw(result) }; // makes sure memory is dropped
-            let token_str = unsafe { CStr::from_ptr((*boxed).token).to_str().unwrap().to_owned() };
+    pub fn checkpoint_hybrid_log(&self) -> Result<CheckPoint, FasterError> {
+        if self.storage_dir.is_none() {
+            return Err(FasterError::InvalidType);
+        }
 
-            let checkpoint = CheckPoint {
-                checked: (*boxed).checked,
-                token: token_str,
-            };
-            Some(checkpoint)
+        let result = unsafe { ffi::faster_checkpoint(self.faster_t) };
+        match result.is_null() {
+            true => Err(FasterError::CheckpointError),
+            false => {
+                let boxed = unsafe { Box::from_raw(result) }; // makes sure memory is dropped
+                let token_str =
+                    unsafe { CStr::from_ptr((*boxed).token).to_str().unwrap().to_owned() };
+
+                let checkpoint = CheckPoint {
+                    checked: (*boxed).checked,
+                    token: token_str,
+                };
+                Ok(checkpoint)
+            }
         }
     }
 
-    pub fn recover(&self, index_token: String, hybrid_log_token: String) -> Option<Recover> {
+    pub fn recover(
+        &self,
+        index_token: String,
+        hybrid_log_token: String,
+    ) -> Result<Recover, FasterError> {
+        if self.storage_dir.is_none() {
+            return Err(FasterError::InvalidType);
+        }
         let index_token_c = CString::new(index_token).unwrap();
         let index_token_ptr = index_token_c.into_raw();
 
@@ -170,27 +231,28 @@ impl FasterKv {
             rec
         };
 
-        if !recover_result.is_null() {
-            let boxed = unsafe { Box::from_raw(recover_result) }; // makes sure mem is freed
-            let sessions_count = (*boxed).session_ids_count;
-            let mut session_ids_vec: Vec<String> = Vec::new();
-            for i in 0..sessions_count {
-                let id = unsafe {
-                    CStr::from_ptr((*(*boxed).session_ids).offset(i as isize))
-                        .to_str()
-                        .unwrap()
-                        .to_owned()
+        match recover_result.is_null() {
+            true => Err(FasterError::RecoveryError),
+            false => {
+                let boxed = unsafe { Box::from_raw(recover_result) }; // makes sure mem is freed
+                let sessions_count = (*boxed).session_ids_count;
+                let mut session_ids_vec: Vec<String> = Vec::new();
+                for i in 0..sessions_count {
+                    let id = unsafe {
+                        CStr::from_ptr((*(*boxed).session_ids).offset(i as isize))
+                            .to_str()
+                            .unwrap()
+                            .to_owned()
+                    };
+                    session_ids_vec.push(id);
+                }
+                let recover = Recover {
+                    status: (*boxed).status,
+                    version: (*boxed).version,
+                    session_ids: session_ids_vec,
                 };
-                session_ids_vec.push(id);
+                Ok(recover)
             }
-            let recover = Recover {
-                status: (*boxed).status,
-                version: (*boxed).version,
-                session_ids: session_ids_vec,
-            };
-            Some(recover)
-        } else {
-            None
         }
     }
 
@@ -233,9 +295,14 @@ impl FasterKv {
     }
 
     // Warning: Calling this will remove the stored data
-    pub fn clean_storage(&self) -> std::io::Result<()> {
-        fs::remove_dir_all(&self.storage_dir)?;
-        Ok(())
+    pub fn clean_storage(&self) -> Result<(), FasterError> {
+        match &self.storage_dir {
+            None => Err(FasterError::InvalidType),
+            Some(dir) => {
+                fs::remove_dir_all(dir)?;
+                Ok(())
+            }
+        }
     }
 
     fn destroy(&self) -> () {

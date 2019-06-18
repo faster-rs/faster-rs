@@ -1,12 +1,12 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/faster-rs/faster-rs)
-[![Cargo](https://img.shields.io/badge/crates.io-0.5.0-orange.svg)](https://crates.io/crates/faster-rs)
+[![Cargo](https://img.shields.io/crates/v/faster-rs.svg)](https://crates.io/crates/faster-rs)
 [![Build Status](https://dev.azure.com/faster-rs/faster-rs/_apis/build/status/faster-rs.faster-rs?branchName=master)](https://dev.azure.com/faster-rs/faster-rs/_build/latest?definitionId=1&branchName=master)
 
 # Experimental FASTER wrapper for Rust
 
 ```toml
 [dependencies]
-faster-rs = "0.5.0"
+faster-rs = "0.6.0"
 ```
 
 Includes experimental C interface for FASTER. It is a generic implementation of FASTER that allows arbitrary Key-Value pairs to be stored. This wrapper is only focusing on Linux support.
