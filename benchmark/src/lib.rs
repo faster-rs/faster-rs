@@ -8,15 +8,14 @@ use regex::Regex;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::prelude::FileExt;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::Receiver;
-use std::sync::{Arc, Barrier, Mutex};
+use std::sync::{Arc, Barrier, Mutex, Condvar};
 use std::time::{Duration, Instant};
 
 const K_CHECKPOINT_SECONDS: u64 = 30;
 const K_COMPLETE_PENDING_INTERVAL: usize = 1600;
 const K_REFRESH_INTERVAL: usize = 64;
-const K_RUN_TIME: u64 = 360;
 const K_CHUNK_SIZE: usize = 3200;
 const K_FILE_CHUNK_SIZE: usize = 131072;
 const K_INIT_COUNT: usize = 250000000;
@@ -197,7 +196,7 @@ pub fn run_benchmark<F: Fn(usize) -> Operation + Send + Copy + 'static>(
 ) -> usize {
     let topo = Arc::new(Mutex::new(Topology::new()));
     let idx = Arc::new(AtomicUsize::new(0));
-    let done = Arc::new(AtomicBool::new(false));
+    let threads_waiting = Arc::new(AtomicUsize::new(num_threads as usize));
     let barrier = Arc::new(Barrier::new((num_threads + 1) as usize));
     let mut threads = vec![];
 
@@ -205,7 +204,7 @@ pub fn run_benchmark<F: Fn(usize) -> Operation + Send + Copy + 'static>(
         let store = Arc::clone(&store);
         let keys = Arc::clone(&keys);
         let idx = Arc::clone(&idx);
-        let done = Arc::clone(&done);
+        let threads_waiting = Arc::clone(&threads_waiting);
         let barrier = Arc::clone(&barrier);
         let topo = Arc::clone(&topo);
 
@@ -231,13 +230,11 @@ pub fn run_benchmark<F: Fn(usize) -> Operation + Send + Copy + 'static>(
 
                     barrier.wait();
                     let start = Instant::now();
-                    while !done.load(Ordering::SeqCst) {
-                        let mut chunk_idx = idx.fetch_add(K_CHUNK_SIZE, Ordering::SeqCst);
-                        while chunk_idx >= K_TXN_COUNT {
-                            if chunk_idx == K_TXN_COUNT {
-                                idx.store(0, Ordering::SeqCst);
-                            }
-                            chunk_idx = idx.fetch_add(K_CHUNK_SIZE, Ordering::SeqCst);
+                    loop {
+                        let chunk_idx = idx.fetch_add(K_CHUNK_SIZE, Ordering::SeqCst);
+                        if chunk_idx >= K_TXN_COUNT {
+                            threads_waiting.fetch_sub(1, Ordering::SeqCst);
+                            break;
                         }
                         for i in chunk_idx..(chunk_idx + K_CHUNK_SIZE) {
                             if i % K_REFRESH_INTERVAL == 0 {
@@ -249,15 +246,15 @@ pub fn run_benchmark<F: Fn(usize) -> Operation + Send + Copy + 'static>(
                             match op_allocator(i) {
                                 Operation::Read => {
                                     let (_, _): (u8, Receiver<i32>) =
-                                        store.read(&*keys.get(i).unwrap(), 1);
+                                        store.read(keys.get(i).unwrap(), 1);
                                     reads += 1;
                                 }
                                 Operation::Upsert => {
-                                    store.upsert(&*keys.get(i).unwrap(), &42, 1);
+                                    store.upsert(keys.get(i).unwrap(), &42, 1);
                                     upserts += 1;
                                 }
                                 Operation::Rmw => {
-                                    store.rmw(&*keys.get(i).unwrap(), &5, 1);
+                                    store.rmw(keys.get(i).unwrap(), &5, 1);
                                     rmws += 1;
                                 }
                             }
@@ -284,21 +281,33 @@ pub fn run_benchmark<F: Fn(usize) -> Operation + Send + Copy + 'static>(
     }
 
     barrier.wait();
-    let start = Instant::now();
-    let mut last_checkpoint = Instant::now();
-    let mut num_checkpoints = 0;
+    let pair = Arc::new((Mutex::new(false), Condvar::new()));
+    let pair2 = Arc::clone(&pair);
+    let store = Arc::clone(&store);
+    std::thread::spawn(move || {
+        let &(ref lock, ref cvar) = &*pair2;
+        let mut finished = lock.lock().unwrap();
+        let mut last_checkpoint = Instant::now();
+        let mut num_checkpoints = 0;
 
-    while Instant::now().duration_since(start).as_secs() < K_RUN_TIME {
-        std::thread::sleep(Duration::from_secs(1));
-        if Instant::now().duration_since(last_checkpoint).as_secs() > K_CHECKPOINT_SECONDS {
-            println!("Checkpointing...");
-            store.checkpoint();
-            num_checkpoints += 1;
-            last_checkpoint = Instant::now();
+        while threads_waiting.load(Ordering::SeqCst) > 0 {
+            std::thread::sleep(Duration::from_secs(1));
+            if Instant::now().duration_since(last_checkpoint).as_secs() > K_CHECKPOINT_SECONDS {
+                println!("Starting checkpoint {}", num_checkpoints);
+                store.checkpoint();
+                num_checkpoints += 1;
+                last_checkpoint = Instant::now();
+            }
         }
-    }
+        *finished = true;
+        cvar.notify_one();
+    });
 
-    done.store(true, Ordering::SeqCst);
+    let &(ref lock, ref cvar) = &*pair;
+    let mut finished = lock.lock().unwrap();
+    while !*finished {
+        finished = cvar.wait(finished).unwrap();
+    }
 
     let mut total_counts = (0, 0, 0, 0);
     for t in threads {
@@ -313,8 +322,8 @@ pub fn run_benchmark<F: Fn(usize) -> Operation + Send + Copy + 'static>(
         / (total_counts.3 as usize / K_NANOS_PER_SECOND);
 
     println!(
-        "Finished benchmark: {} checkpoints, {} reads, {} writes, {} rmws. {} ops/second/thread",
-        num_checkpoints, total_counts.0, total_counts.1, total_counts.2, ops_per_second_per_thread
+        "Finished benchmark: {} reads, {} writes, {} rmws. {} ops/second/thread",
+        total_counts.0, total_counts.1, total_counts.2, ops_per_second_per_thread
     );
 
     ops_per_second_per_thread
