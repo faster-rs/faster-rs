@@ -294,6 +294,10 @@ impl FasterKv {
         }
     }
 
+    pub fn grow_index(&self) -> bool {
+        unsafe { ffi::faster_grow_index(self.faster_t) }
+    }
+
     // Warning: Calling this will remove the stored data
     pub fn clean_storage(&self) -> Result<(), FasterError> {
         match &self.storage_dir {
