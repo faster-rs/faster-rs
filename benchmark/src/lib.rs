@@ -85,6 +85,10 @@ pub fn upsert_100(_key: usize) -> Operation {
     Operation::Upsert
 }
 
+pub fn read_100(_key: usize) -> Operation {
+    Operation::Read
+}
+
 pub fn load_files(load_file: &str, run_file: &str) -> (Vec<u64>, Vec<u64>) {
     let load_file = File::open(load_file).expect("Unable to open load file");
     let run_file = File::open(run_file).expect("Unable to open run file");
