@@ -239,7 +239,7 @@ impl FasterKv {
                 let mut session_ids_vec: Vec<String> = Vec::new();
                 for i in 0..sessions_count {
                     let id = unsafe {
-                        CStr::from_ptr((*(*boxed).session_ids).offset(i as isize))
+                        CStr::from_ptr(((*boxed).session_ids).offset(37 * i as isize))
                             .to_str()
                             .unwrap()
                             .to_owned()
