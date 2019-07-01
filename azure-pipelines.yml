@@ -29,18 +29,11 @@ jobs:
   - script: |
       cargo login $PSWD
       pushd libfaster-sys/
-      cargo publish
+      cargo publish && sleep 2m
       popd
-    env:
-      PSWD: $(crates.io)
-    condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/master'))
-    displayName: 'Deploy libfaster-sys'
-  - script: |
-      sleep 2m
-      cargo login $PSWD
       cargo update
       cargo publish
     env:
       PSWD: $(crates.io)
     condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/master'))
-    displayName: 'Deploy faster-rs'
+    displayName: 'Deploy'
