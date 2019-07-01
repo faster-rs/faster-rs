@@ -25,7 +25,9 @@ pub trait FasterValue: Deserialize<'static> + Serialize {
             let _ = sender.send(val);
         }
     }
+}
 
+pub trait FasterRmw: Deserialize<'static> + Serialize {
     unsafe extern "C" fn rmw_callback<T>(
         current: *const u8,
         length_current: u64,
@@ -34,7 +36,7 @@ pub trait FasterValue: Deserialize<'static> + Serialize {
         dst: *mut u8,
     ) -> u64
     where
-        T: Serialize + Deserialize<'static> + FasterValue,
+        T: Serialize + Deserialize<'static> + FasterRmw,
     {
         let val: T =
             deserialize(std::slice::from_raw_parts(current, length_current as usize)).unwrap();
@@ -52,5 +54,39 @@ pub trait FasterValue: Deserialize<'static> + Serialize {
         size as u64
     }
 
+    /// Specify custom Read-Modify-Write logic
+    ///
+    /// # Warning
+    /// The size of the new value must be no larger than that of the original value.
+    ///
+    /// Failing to ensure this will probably corrupt your FASTER instance.
+    ///
+    /// # Example
+    /// ```
+    /// use faster_rs::{status, FasterKv, FasterRmw};
+    /// use serde_derive::{Deserialize, Serialize};
+    /// use std::sync::mpsc::Receiver;
+    ///
+    /// #[derive(Serialize, Deserialize)]
+    /// struct MyU64 {
+    ///     value: u64,
+    /// }
+    /// impl FasterRmw for MyU64 {
+    ///     fn rmw(&self, modification: Self) -> Self {
+    ///         MyU64 {
+    ///             value: self.value + modification.value,
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// let store = FasterKv::new_in_memory(32768, 536870912);
+    /// let key = 5 as u64;
+    /// let value = MyU64 { value: 12 };
+    /// let modification = MyU64 { value: 17 };
+    /// store.upsert(&key, &value, 1);
+    /// store.rmw(&key, &modification, 1);
+    /// let (status, recv): (u8, Receiver<MyU64>) = store.read(&key, 1);
+    /// assert!(status == status::OK);
+    /// assert_eq!(recv.recv().unwrap().value, value.value + modification.value);
     fn rmw(&self, modification: Self) -> Self;
 }

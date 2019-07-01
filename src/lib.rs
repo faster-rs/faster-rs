@@ -2,12 +2,12 @@ extern crate bincode;
 extern crate libc;
 extern crate libfaster_sys as ffi;
 
-mod faster_value;
+mod faster_traits;
 mod impls;
 pub mod status;
 mod util;
 
-pub use crate::faster_value::FasterValue;
+pub use crate::faster_traits::{FasterRmw, FasterValue};
 use crate::util::*;
 
 use serde::{Deserialize, Serialize};
@@ -123,7 +123,7 @@ impl FasterKv {
     pub fn rmw<K, V>(&self, key: &K, value: &V, monotonic_serial_number: u64) -> u8
     where
         K: FasterKey,
-        V: FasterValue,
+        V: FasterRmw,
     {
         let encoded_key = bincode::serialize(key).unwrap();
         let mut encoded = bincode::serialize(value).unwrap();
