@@ -11,52 +11,53 @@ use std::sync::mpsc::Sender;
 
 pub trait FasterKey: DeserializeOwned + Serialize {}
 
-pub trait FasterValue: DeserializeOwned + Serialize {
-    unsafe extern "C" fn read_callback<T>(
-        sender: *mut libc::c_void,
-        value: *const u8,
-        length: u64,
-        status: u32,
-    ) where
-        T: DeserializeOwned,
-    {
-        let boxed_sender = Box::from_raw(sender as *mut Sender<T>);
-        let sender = *boxed_sender;
-        if status == status::OK.into() {
-            let val = deserialize(std::slice::from_raw_parts(value, length as usize)).unwrap();
-            // TODO: log error
-            let _ = sender.send(val);
-        }
+pub trait FasterValue: DeserializeOwned + Serialize {}
+
+#[inline(always)]
+pub unsafe extern "C" fn read_callback<T>(
+    sender: *mut libc::c_void,
+    value: *const u8,
+    length: u64,
+    status: u32,
+) where
+    T: DeserializeOwned,
+{
+    let boxed_sender = Box::from_raw(sender as *mut Sender<T>);
+    let sender = *boxed_sender;
+    if status == status::OK.into() {
+        let val = deserialize(std::slice::from_raw_parts(value, length as usize)).unwrap();
+        // TODO: log error
+        let _ = sender.send(val);
     }
 }
 
-pub trait FasterRmw: DeserializeOwned + Serialize {
-    unsafe extern "C" fn rmw_callback<T>(
-        current: *const u8,
-        length_current: u64,
-        modification: *mut u8,
-        length_modification: u64,
-        dst: *mut u8,
-    ) -> u64
-    where
-        T: Serialize + DeserializeOwned + FasterRmw,
-    {
-        let val: T =
-            deserialize(std::slice::from_raw_parts(current, length_current as usize)).unwrap();
-        let modif = deserialize(std::slice::from_raw_parts_mut(
-            modification,
-            length_modification as usize,
-        ))
-        .unwrap();
-        let modified = val.rmw(modif);
-        let encoded = bincode::serialize(&modified).unwrap();
-        let size = encoded.len();
-        if dst != std::ptr::null_mut() {
-            encoded.as_ptr().copy_to(dst, size);
-        }
-        size as u64
+#[inline(always)]
+pub unsafe extern "C" fn rmw_callback<T>(
+    current: *const u8,
+    length_current: u64,
+    modification: *mut u8,
+    length_modification: u64,
+    dst: *mut u8,
+) -> u64
+where
+    T: Serialize + DeserializeOwned + FasterRmw,
+{
+    let val: T = deserialize(std::slice::from_raw_parts(current, length_current as usize)).unwrap();
+    let modif = deserialize(std::slice::from_raw_parts_mut(
+        modification,
+        length_modification as usize,
+    ))
+    .unwrap();
+    let modified = val.rmw(modif);
+    let encoded = bincode::serialize(&modified).unwrap();
+    let size = encoded.len();
+    if dst != std::ptr::null_mut() {
+        encoded.as_ptr().copy_to(dst, size);
     }
+    size as u64
+}
 
+pub trait FasterRmw: DeserializeOwned + Serialize {
     /// Specify custom Read-Modify-Write logic
     ///
     /// # Warning

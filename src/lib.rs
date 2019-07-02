@@ -7,6 +7,7 @@ mod impls;
 pub mod status;
 mod util;
 
+use crate::faster_traits::{read_callback, rmw_callback};
 pub use crate::faster_traits::{FasterKey, FasterRmw, FasterValue};
 use crate::util::*;
 
@@ -110,7 +111,7 @@ impl FasterKv {
                 encoded_key.as_ptr(),
                 encoded_key.len() as u64,
                 monotonic_serial_number,
-                Some(V::read_callback::<V>),
+                Some(read_callback::<V>),
                 sender_ptr as *mut libc::c_void,
             )
         };
@@ -132,7 +133,7 @@ impl FasterKv {
                 encoded.as_mut_ptr(),
                 encoded.len() as u64,
                 monotonic_serial_number,
-                Some(V::rmw_callback::<V>),
+                Some(rmw_callback::<V>),
             )
         }
     }
