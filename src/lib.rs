@@ -10,7 +10,6 @@ mod util;
 pub use crate::faster_traits::{FasterKey, FasterRmw, FasterValue};
 use crate::util::*;
 
-use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::ffi::CStr;
 use std::ffi::CString;
