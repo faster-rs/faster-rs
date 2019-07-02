@@ -7,7 +7,7 @@ mod impls;
 pub mod status;
 mod util;
 
-pub use crate::faster_traits::{FasterRmw, FasterValue};
+pub use crate::faster_traits::{FasterKey, FasterRmw, FasterValue};
 use crate::util::*;
 
 use serde::{Deserialize, Serialize};
@@ -17,8 +17,6 @@ use std::ffi::CString;
 use std::io;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::{fmt, fs};
-
-pub trait FasterKey: Serialize + Deserialize<'static> {}
 
 pub struct FasterKv {
     faster_t: *mut ffi::faster_t,

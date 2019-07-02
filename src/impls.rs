@@ -1,9 +1,10 @@
 use crate::{FasterKey, FasterRmw, FasterValue};
-use serde::{Deserialize, Serialize};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::ops::Add;
 
-impl<T> FasterKey for T where T: Serialize + Deserialize<'static> {}
-impl<T> FasterValue for T where T: Serialize + Deserialize<'static> {}
+impl<T> FasterKey for T where T: Serialize + DeserializeOwned {}
+impl<T> FasterValue for T where T: Serialize + DeserializeOwned {}
 
 macro_rules! primitive_impl {
     ($ty:ident, $method:ident $($cast:tt)*) => {

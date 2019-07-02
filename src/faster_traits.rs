@@ -5,17 +5,20 @@ extern crate libfaster_sys as ffi;
 use crate::status;
 
 use bincode::deserialize;
-use serde::{Deserialize, Serialize};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::sync::mpsc::Sender;
 
-pub trait FasterValue: Deserialize<'static> + Serialize {
+pub trait FasterKey: DeserializeOwned + Serialize {}
+
+pub trait FasterValue: DeserializeOwned + Serialize {
     unsafe extern "C" fn read_callback<T>(
         sender: *mut libc::c_void,
         value: *const u8,
         length: u64,
         status: u32,
     ) where
-        T: Deserialize<'static>,
+        T: DeserializeOwned,
     {
         let boxed_sender = Box::from_raw(sender as *mut Sender<T>);
         let sender = *boxed_sender;
@@ -27,7 +30,7 @@ pub trait FasterValue: Deserialize<'static> + Serialize {
     }
 }
 
-pub trait FasterRmw: Deserialize<'static> + Serialize {
+pub trait FasterRmw: DeserializeOwned + Serialize {
     unsafe extern "C" fn rmw_callback<T>(
         current: *const u8,
         length_current: u64,
@@ -36,7 +39,7 @@ pub trait FasterRmw: Deserialize<'static> + Serialize {
         dst: *mut u8,
     ) -> u64
     where
-        T: Serialize + Deserialize<'static> + FasterRmw,
+        T: Serialize + DeserializeOwned + FasterRmw,
     {
         let val: T =
             deserialize(std::slice::from_raw_parts(current, length_current as usize)).unwrap();
