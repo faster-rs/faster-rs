@@ -2,23 +2,21 @@ extern crate bincode;
 extern crate libc;
 extern crate libfaster_sys as ffi;
 
-mod faster_value;
+mod faster_traits;
 mod impls;
 pub mod status;
 mod util;
 
-pub use crate::faster_value::FasterValue;
+use crate::faster_traits::{read_callback, rmw_callback};
+pub use crate::faster_traits::{FasterKey, FasterRmw, FasterValue};
 use crate::util::*;
 
-use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::io;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::{fmt, fs};
-
-pub trait FasterKey: Serialize + Deserialize<'static> {}
 
 pub struct FasterKv {
     faster_t: *mut ffi::faster_t,
@@ -113,7 +111,7 @@ impl FasterKv {
                 encoded_key.as_ptr(),
                 encoded_key.len() as u64,
                 monotonic_serial_number,
-                Some(V::read_callback::<V>),
+                Some(read_callback::<V>),
                 sender_ptr as *mut libc::c_void,
             )
         };
@@ -123,7 +121,7 @@ impl FasterKv {
     pub fn rmw<K, V>(&self, key: &K, value: &V, monotonic_serial_number: u64) -> u8
     where
         K: FasterKey,
-        V: FasterValue,
+        V: FasterRmw,
     {
         let encoded_key = bincode::serialize(key).unwrap();
         let mut encoded = bincode::serialize(value).unwrap();
@@ -135,7 +133,7 @@ impl FasterKv {
                 encoded.as_mut_ptr(),
                 encoded.len() as u64,
                 monotonic_serial_number,
-                Some(V::rmw_callback::<V>),
+                Some(rmw_callback::<V>),
             )
         }
     }

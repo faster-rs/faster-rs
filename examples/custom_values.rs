@@ -1,7 +1,7 @@
 extern crate faster_rs;
 extern crate serde_derive;
 
-use faster_rs::{status, FasterKv, FasterValue};
+use faster_rs::{status, FasterKv};
 use serde_derive::{Deserialize, Serialize};
 use std::sync::mpsc::Receiver;
 
@@ -10,12 +10,6 @@ use std::sync::mpsc::Receiver;
 struct MyValue {
     foo: String,
     bar: String,
-}
-
-impl FasterValue for MyValue {
-    fn rmw(&self, _modification: MyValue) -> MyValue {
-        unimplemented!()
-    }
 }
 
 fn main() {

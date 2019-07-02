@@ -6,7 +6,7 @@
 
 ```toml
 [dependencies]
-faster-rs = "0.7.0"
+faster-rs = "0.8.0"
 ```
 
 Includes experimental C interface for FASTER. It is a generic implementation of FASTER that allows arbitrary Key-Value pairs to be stored. This wrapper is only focusing on Linux support.
@@ -21,7 +21,7 @@ $ apt install -y g++-7 libaio-dev uuid-dev libtbb-dev
 *Make sure you clone the submodules as well*, this is best done by cloning with `git clone --recurse-submodules`.
 
 ## The interface
-This wrapper attempts to remain true to the original FASTER design by exposing a similar interface to that which is provided by the original C++ version. Users may define their own Key-Value types (that implement the `FasterKey` and `FasterValue` traits) and provide custom logic for Read-Modify-Write operations.
+This wrapper attempts to remain true to the original FASTER design by exposing a similar interface to that which is provided by the original C++ version. Users may define their own Key-Value types and provide custom logic for Read-Modify-Write operations.
 
 
 The `Read`, `Upsert` and `RMW` operations all require a monotonic serial number to form the sequence of operations that will be persisted by FASTER. `Read` operations require a serial number so that at a CPR checkpoint boundary, FASTER guarantees that the reads before that point have accessed no data updates after the checkpoint. If persistence is not important, the serial number can safely be set to `1` for all operations (as is done in the examples above).
@@ -146,7 +146,9 @@ fn main() {
 
 
 ## Using custom values
-`struct`s that can be (de)serialised using [serde](https://crates.rs/crates/serde) are supported as values. In order to use such a `struct`, it is necessary to derive the implementations of `Serializable` and `Deserializable` from `serde-derive`. It is also necessary to implement the `FasterValue` trait which exposes an `rmw()` function. This function can be used to implement custom logic for Read-Modify-Write operations or simply left with an `unimplemented!()` macro. In the latter case, any attempt to invoke a RMW operation will cause a panic.
+`struct`s that can be (de)serialised using [serde](https://crates.rs/crates/serde) are supported as values. In order to use such a `struct`, it is necessary to derive the implementations of `Serializable` and `Deserializable` from `serde-derive`.
+
+In order to use Read-Modify-Write operations on a custom type, it is also necessary to implement the `FasterRmw` trait which exposes an `rmw()` function. This function can be used to implement custom logic for Read-Modify-Write operations. Currently, it is only safe to perform RMW operations that do not increase the serialised size of the Value. For example, addition of numbers is fine but attempting to enlarge a `Vec` or `String` will corrupt the FASTER instance.
 
 The following example shows a basic struct being used as a value. Try it out by running `cargo run --example custom_values`.
 
@@ -154,7 +156,7 @@ The following example shows a basic struct being used as a value. Try it out by 
 extern crate faster_rs;
 extern crate serde_derive;
 
-use faster_rs::{status, FasterKv, FasterValue};
+use faster_rs::{status, FasterKv};
 use serde_derive::{Deserialize, Serialize};
 use std::sync::mpsc::Receiver;
 
@@ -163,12 +165,6 @@ use std::sync::mpsc::Receiver;
 struct MyValue {
     foo: String,
     bar: String,
-}
-
-impl FasterValue for MyValue {
-    fn rmw(&self, _modification: MyValue) -> MyValue {
-        unimplemented!()
-    }
 }
 
 fn main() {
@@ -210,11 +206,10 @@ fn main() {
 }
 ```
 
-## Out-of-the-box implementations of `FasterValue`
-Several types already implement `FasterValue` along with providing Read-Modify-Write logic. The implementations can be found in `src/impls.rs` but their RMW logic is summarised here:
+## Out-of-the-box implementations of `FasterRmw`
+Several types already implement `FasterRmw` along with providing Read-Modify-Write logic. The implementations can be found in `src/impls.rs` but their RMW logic is summarised here:
 * Numeric types use addition
 * Bools and Chars replace old value for new value
-* Strings and Vectors append new values (use an `upsert` to replace entire value)
 
 ## Checkpoint and Recovery
 FASTER's fault tolerance is provided by [Concurrent Prefix Recovery](https://www.microsoft.com/en-us/research/uploads/prod/2019/01/cpr-sigmod19.pdf) (CPR). It provides the following semantics:
