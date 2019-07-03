@@ -1,7 +1,7 @@
 [package]
 name = "libfaster-sys"
 description = "Bindings for FASTER"
-version = "0.7.1"
+version = "0.8.0"
 authors = ["Max Meldrum <mmeldrum@kth.se>", "Matthew Brookes <mbrookes1304@gmail.com>"]
 edition = "2018"
 repository = "https://github.com/faster-rs/faster-rs.git"
@@ -14,5 +14,5 @@ license = "MIT"
 libc = "0.2"
 
 [build-dependencies]
-bindgen = "0.43.1"
+bindgen = "0.50"
 cmake = "0.1"
