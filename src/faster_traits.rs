@@ -76,7 +76,7 @@ pub trait FasterRmw: DeserializeOwned + Serialize {
     ///     value: u64,
     /// }
     /// impl FasterRmw for MyU64 {
-    ///     fn rmw(&self, modification: Self) -> Self {
+    ///     fn rmw(self, modification: Self) -> Self {
     ///         MyU64 {
     ///             value: self.value + modification.value,
     ///         }
@@ -92,5 +92,5 @@ pub trait FasterRmw: DeserializeOwned + Serialize {
     /// let (status, recv): (u8, Receiver<MyU64>) = store.read(&key, 1);
     /// assert!(status == status::OK);
     /// assert_eq!(recv.recv().unwrap().value, value.value + modification.value);
-    fn rmw(&self, modification: Self) -> Self;
+    fn rmw(self, modification: Self) -> Self;
 }
