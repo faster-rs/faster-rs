@@ -1,29 +1,26 @@
 extern crate faster_rs;
-extern crate tempfile;
 
 use faster_rs::FasterKv;
 use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::thread;
-use tempfile::TempDir;
 
 #[test]
 fn multi_threaded_test() {
     let table_size: u64 = 1 << 14;
     let log_size: u64 = 17179869184;
-    let tmp_dir = TempDir::new().unwrap();
-    let dir_path = tmp_dir.path().to_string_lossy().into_owned();
-    let store = Arc::new(FasterKv::new(table_size, log_size, dir_path).unwrap());
-    let ops = 1000;
+    let store = Arc::new(FasterKv::new_in_memory(table_size, log_size));
+    let ops = 1 << 15;
 
     let initial_value: u64 = 100;
     let modification: u64 = 30;
+    store.start_session();
 
     for key in 0..ops {
         store.upsert(&(key as u64), &initial_value, key);
     }
 
-    let num_threads = 4;
+    let num_threads = 16;
     let mut threads = vec![];
     for _ in 0..num_threads {
         let store = Arc::clone(&store);
@@ -49,7 +46,9 @@ fn multi_threaded_test() {
 
     for key in 0..ops {
         let expected_value = initial_value + (modification * num_threads);
-        let (_res, recv): (u8, Receiver<u64>) = store.read(&key, key);
+        let (_res, recv): (u8, Receiver<u64>) = store.read(&key, ops + key);
         assert_eq!(recv.recv().unwrap(), expected_value);
     }
+    store.complete_pending(true);
+    store.stop_session();
 }
