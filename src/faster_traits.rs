@@ -60,11 +60,6 @@ where
 pub trait FasterRmw: DeserializeOwned + Serialize {
     /// Specify custom Read-Modify-Write logic
     ///
-    /// # Warning
-    /// The size of the new value must be no larger than that of the original value.
-    ///
-    /// Failing to ensure this will probably corrupt your FASTER instance.
-    ///
     /// # Example
     /// ```
     /// use faster_rs::{status, FasterKv, FasterRmw};
