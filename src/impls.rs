@@ -17,6 +17,17 @@ macro_rules! primitive_impl {
     };
 }
 
+macro_rules! owned_impl {
+    ($ty:ident, $method:ident $($cast:tt)*) => {
+        impl FasterRmw for $ty {
+            #[inline]
+            fn rmw(&self, modification: Self) -> Self {
+                $method(self, modification)
+            }
+        }
+    };
+}
+
 fn rmw_bool(_old: bool, new: bool) -> bool {
     new
 }
@@ -44,3 +55,24 @@ fn rmw_char(_old: char, new: char) -> char {
     new
 }
 primitive_impl!(char, rmw_char);
+
+fn rmw_string(old: &String, new: String) -> String {
+    let mut new_string = old.clone();
+    new_string.push_str(new.as_str());
+    new_string
+}
+owned_impl!(String, rmw_string);
+
+impl<T: Clone + Serialize + DeserializeOwned> FasterRmw for Vec<T> {
+    #[inline]
+    fn rmw(&self, new: Vec<T>) -> Vec<T> {
+        let mut result = Vec::with_capacity(self.len() + new.len());
+        for e in self {
+            result.push(e.clone());
+        }
+        for e in new {
+            result.push(e.clone());
+        }
+        result
+    }
+}

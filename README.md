@@ -148,7 +148,7 @@ fn main() {
 ## Using custom values
 `struct`s that can be (de)serialised using [serde](https://crates.rs/crates/serde) are supported as values. In order to use such a `struct`, it is necessary to derive the implementations of `Serializable` and `Deserializable` from `serde-derive`.
 
-In order to use Read-Modify-Write operations on a custom type, it is also necessary to implement the `FasterRmw` trait which exposes an `rmw()` function. This function can be used to implement custom logic for Read-Modify-Write operations. Currently, it is only safe to perform RMW operations that do not increase the serialised size of the Value. For example, addition of numbers is fine but attempting to enlarge a `Vec` or `String` will corrupt the FASTER instance.
+In order to use Read-Modify-Write operations on a custom type, it is also necessary to implement the `FasterRmw` trait which exposes an `rmw()` function. This function can be used to implement custom logic for Read-Modify-Write operations.
 
 The following example shows a basic struct being used as a value. Try it out by running `cargo run --example custom_values`.
 
@@ -210,6 +210,7 @@ fn main() {
 Several types already implement `FasterRmw` along with providing Read-Modify-Write logic. The implementations can be found in `src/impls.rs` but their RMW logic is summarised here:
 * Numeric types use addition
 * Bools and Chars replace old value for new value
+* Strings and Vec<T> append modification
 
 ## Checkpoint and Recovery
 FASTER's fault tolerance is provided by [Concurrent Prefix Recovery](https://www.microsoft.com/en-us/research/uploads/prod/2019/01/cpr-sigmod19.pdf) (CPR). It provides the following semantics:
