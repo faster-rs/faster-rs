@@ -3,6 +3,9 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::ops::Add;
 
+use std::collections::HashSet;
+use std::hash::Hash;
+
 impl<T> FasterKey for T where T: Serialize + DeserializeOwned {}
 impl<T> FasterValue for T where T: Serialize + DeserializeOwned {}
 
@@ -74,5 +77,13 @@ impl<T: Clone + Serialize + DeserializeOwned> FasterRmw for Vec<T> {
             result.push(e.clone());
         }
         result
+    }
+}
+
+impl<T: Clone + Serialize + DeserializeOwned + Hash + Eq> FasterRmw for HashSet<T> {
+    #[inline]
+    fn rmw(&self, new: HashSet<T>) -> HashSet<T> {
+        let union = self.union(&new);
+        union.cloned().collect()
     }
 }

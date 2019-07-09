@@ -2,6 +2,7 @@ extern crate faster_rs;
 extern crate tempfile;
 
 use faster_rs::{status, FasterKv};
+use std::collections::HashSet;
 use std::sync::mpsc::Receiver;
 use tempfile::TempDir;
 
@@ -155,12 +156,34 @@ fn faster_rmw_grow_string() {
     let key = String::from("growing_string");
     let final_string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     for i in 0..final_string.len() {
-        let letter: String = final_string.get(i..i+1).unwrap().to_string();
+        let letter: String = final_string.get(i..i + 1).unwrap().to_string();
         store.rmw(&key, &letter, 1);
     }
 
     let (res, recv): (u8, Receiver<String>) = store.read(&key, 1);
     assert_eq!(res, status::OK);
     assert_eq!(recv.recv().unwrap(), final_string);
+}
 
+#[test]
+fn faster_rmw_hashset() {
+    let store = FasterKv::new_in_memory(TABLE_SIZE, LOG_SIZE);
+    let key = String::from("set");
+    {
+        let a: HashSet<i32> = [1, 2, 3].iter().cloned().collect();
+        store.rmw(&key, &a, 1);
+    }
+    {
+        let b: HashSet<i32> = [4, 2, 3, 4, 5].iter().cloned().collect();
+        store.rmw(&key, &b, 1);
+    }
+    let (res, recv): (u8, Receiver<HashSet<i32>>) = store.read(&key, 1);
+    assert_eq!(res, status::OK);
+    let hash_set = recv.recv().unwrap();
+    assert_eq!(hash_set.len(), 5);
+    assert!(hash_set.contains(&1));
+    assert!(hash_set.contains(&2));
+    assert!(hash_set.contains(&3));
+    assert!(hash_set.contains(&4));
+    assert!(hash_set.contains(&5));
 }

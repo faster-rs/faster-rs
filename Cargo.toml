@@ -1,6 +1,6 @@
 [package]
 name = "faster-rs"
-version = "0.8.2"
+version = "0.8.3"
 authors = ["Max Meldrum <mmeldrum@kth.se>", "Matthew Brookes <mbrookes1304@gmail.com>"]
 edition = "2018"
 keywords = ["concurrent", "embedded", "key-value-store"]

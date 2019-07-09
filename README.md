@@ -211,6 +211,7 @@ Several types already implement `FasterRmw` along with providing Read-Modify-Wri
 * Numeric types use addition
 * Bools and Chars replace old value for new value
 * Strings and Vec<T> append modification
+* HashSet<T> performs union operation
 
 ## Checkpoint and Recovery
 FASTER's fault tolerance is provided by [Concurrent Prefix Recovery](https://www.microsoft.com/en-us/research/uploads/prod/2019/01/cpr-sigmod19.pdf) (CPR). It provides the following semantics:
