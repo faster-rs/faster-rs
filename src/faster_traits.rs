@@ -42,13 +42,13 @@ pub unsafe extern "C" fn rmw_callback<T>(
 where
     T: Serialize + DeserializeOwned + FasterRmw,
 {
-    let val: T = deserialize(std::slice::from_raw_parts(current, length_current as usize)).unwrap();
-    let modif = deserialize(std::slice::from_raw_parts_mut(
+    let val: T = deserialize(std::slice::from_raw_parts(current, length_current as usize)).expect("Couldn't deserialise value");
+    let modif: T = deserialize(std::slice::from_raw_parts_mut(
         modification,
         length_modification as usize,
     ))
-    .unwrap();
-    let modified = val.rmw(modif);
+    .expect("Couldn't deserialise modification");
+    let modified: T = val.rmw(modif);
     let encoded = bincode::serialize(&modified).unwrap();
     let size = encoded.len();
     if dst != std::ptr::null_mut() {
