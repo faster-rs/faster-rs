@@ -311,6 +311,7 @@ impl FasterKv {
 // In order to make sure we release the resources the C interface has allocated for the store
 impl Drop for FasterKv {
     fn drop(&mut self) {
+        println!("Final size: {}", self.size());
         self.destroy();
     }
 }
