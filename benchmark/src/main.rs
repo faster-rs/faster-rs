@@ -168,24 +168,28 @@ fn main() {
         let load_keys = Arc::new(load_keys);
         let txn_keys = Arc::new(txn_keys);
 
-        let thread_configurations = vec![1, 2, 4, 8, 16, 32];
+        let thread_configurations = vec![1, 2, 4, 8, 16, 32, 48];
         let mut benchmark_results = HashMap::new();
 
-        for num_threads in thread_configurations {
-            let store = Arc::new(FasterKv::new(table_size, log_size, dir_path.clone()).unwrap());
-            println!("Populating datastore");
-            populate_store(&store, &load_keys, num_threads);
-            println!("Beginning benchmark");
-            let result = run_benchmark(&store, &txn_keys, num_threads, op_allocator);
-            benchmark_results.insert(num_threads, result);
-            match store.clean_storage() {
-                Ok(_) => { /*no-op*/ }
-                Err(_) => eprintln!("Unable to clear storage"),
+        for _ in 0..3 {
+            for num_threads in &thread_configurations {
+                let store = Arc::new(FasterKv::new(table_size, log_size, dir_path.clone()).unwrap());
+                println!("Populating datastore");
+                populate_store(&store, &load_keys, 48);
+                println!("Beginning benchmark");
+                let result = run_benchmark(&store, &txn_keys, *num_threads, op_allocator);
+                let entry = benchmark_results.entry(num_threads).or_insert(Vec::new());
+                entry.push(result);
+                //benchmark_results.insert(num_threads, result);
+                match store.clean_storage() {
+                    Ok(_) => { /*no-op*/ }
+                    Err(_) => eprintln!("Unable to clear storage"),
+                }
             }
         }
 
         for (num_threads, result) in benchmark_results {
-            println!("{} threads: {} ops/second/thread", num_threads, result);
+            println!("{} threads: {:?} ops/second/thread", num_threads, result);
         }
     }
 }
