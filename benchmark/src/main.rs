@@ -162,7 +162,7 @@ fn main() {
         };
 
         let table_size: u64 = 134217728;
-        let log_size: u64 = 17179869184;
+        let log_size: u64 = 32 * 1024 * 1024 * 1024; // 32 GB
         let dir_path = String::from("benchmark_store");
         let (load_keys, txn_keys) = load_files(load_keys_file, run_keys_file);
         let load_keys = Arc::new(load_keys);
