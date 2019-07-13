@@ -50,6 +50,11 @@ impl From<io::Error> for FasterError {
 
 impl Error for FasterError {}
 
+#[no_mangle]
+pub unsafe extern "C" fn deallocate_vec(vec: *mut u8, length: u64) {
+    drop(Vec::from_raw_parts(vec, length as usize, length as usize));
+}
+
 impl FasterKv {
     pub fn new(
         table_size: u64,
@@ -83,15 +88,21 @@ impl FasterKv {
         K: FasterKey,
         V: FasterValue,
     {
-        let encoded_key = bincode::serialize(key).unwrap();
+        let mut encoded_key = bincode::serialize(key).unwrap();
+        let encoded_key_length = encoded_key.len();
+        let encoded_key_ptr = encoded_key.as_mut_ptr();
         let mut encoded_value = bincode::serialize(value).unwrap();
+        let encoded_value_length = encoded_value.len();
+        let encoded_value_ptr = encoded_value.as_mut_ptr();
+        std::mem::forget(encoded_key);
+        std::mem::forget(encoded_value);
         unsafe {
             ffi::faster_upsert(
                 self.faster_t,
-                encoded_key.as_ptr(),
-                encoded_key.len() as u64,
-                encoded_value.as_mut_ptr(),
-                encoded_value.len() as u64,
+                encoded_key_ptr,
+                encoded_key_length as u64,
+                encoded_value_ptr,
+                encoded_value_length as u64,
                 monotonic_serial_number,
             )
         }
@@ -102,14 +113,17 @@ impl FasterKv {
         K: FasterKey,
         V: FasterValue,
     {
-        let encoded_key = bincode::serialize(key).unwrap();
+        let mut encoded_key = bincode::serialize(key).unwrap();
+        let encoded_key_length = encoded_key.len();
+        let encoded_key_ptr = encoded_key.as_mut_ptr();
         let (sender, receiver) = channel();
         let sender_ptr: *mut Sender<V> = Box::into_raw(Box::new(sender));
+        std::mem::forget(encoded_key);
         let status = unsafe {
             ffi::faster_read(
                 self.faster_t,
-                encoded_key.as_ptr(),
-                encoded_key.len() as u64,
+                encoded_key_ptr,
+                encoded_key_length as u64,
                 monotonic_serial_number,
                 Some(read_callback::<V>),
                 sender_ptr as *mut libc::c_void,
@@ -123,15 +137,21 @@ impl FasterKv {
         K: FasterKey,
         V: FasterRmw,
     {
-        let encoded_key = bincode::serialize(key).unwrap();
-        let mut encoded = bincode::serialize(value).unwrap();
+        let mut encoded_key = bincode::serialize(key).unwrap();
+        let encoded_key_length = encoded_key.len();
+        let encoded_key_ptr = encoded_key.as_mut_ptr();
+        let mut encoded_value = bincode::serialize(value).unwrap();
+        let encoded_value_length = encoded_value.len();
+        let encoded_value_ptr = encoded_value.as_mut_ptr();
+        std::mem::forget(encoded_key);
+        std::mem::forget(encoded_value);
         unsafe {
             ffi::faster_rmw(
                 self.faster_t,
-                encoded_key.as_ptr(),
-                encoded_key.len() as u64,
-                encoded.as_mut_ptr(),
-                encoded.len() as u64,
+                encoded_key_ptr,
+                encoded_key_length as u64,
+                encoded_value_ptr,
+                encoded_value_length as u64,
                 monotonic_serial_number,
                 Some(rmw_callback::<V>),
             )
