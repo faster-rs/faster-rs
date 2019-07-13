@@ -2,53 +2,27 @@ extern crate bincode;
 extern crate libc;
 extern crate libfaster_sys as ffi;
 
+mod faster_error;
 mod faster_traits;
 mod impls;
 pub mod status;
 mod util;
 
+pub use crate::faster_error::FasterError;
 use crate::faster_traits::{read_callback, rmw_callback};
 pub use crate::faster_traits::{FasterKey, FasterRmw, FasterValue};
 use crate::util::*;
 
-use std::error::Error;
 use std::ffi::CStr;
 use std::ffi::CString;
+use std::fs;
 use std::io;
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::{fmt, fs};
 
 pub struct FasterKv {
     faster_t: *mut ffi::faster_t,
     storage_dir: Option<String>,
 }
-
-#[derive(Debug)]
-pub enum FasterError {
-    IOError(io::Error),
-    InvalidType,
-    RecoveryError,
-    CheckpointError,
-}
-
-impl fmt::Display for FasterError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            FasterError::IOError(err) => write!(f, "{}", err.description()),
-            FasterError::InvalidType => write!(f, "Cannot call method with in-memory FasterKv"),
-            FasterError::RecoveryError => write!(f, "Failed to recover"),
-            FasterError::CheckpointError => write!(f, "Checkpoint failed"),
-        }
-    }
-}
-
-impl From<io::Error> for FasterError {
-    fn from(e: io::Error) -> Self {
-        FasterError::IOError(e)
-    }
-}
-
-impl Error for FasterError {}
 
 #[no_mangle]
 pub unsafe extern "C" fn deallocate_vec(vec: *mut u8, length: u64) {
