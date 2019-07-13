@@ -6,7 +6,7 @@
 
 ```toml
 [dependencies]
-faster-rs = "0.8.0"
+faster-rs = "0.8.4"
 ```
 
 Includes experimental C interface for FASTER. It is a generic implementation of FASTER that allows arbitrary Key-Value pairs to be stored. This wrapper is only focusing on Linux support.
