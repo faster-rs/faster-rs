@@ -37,8 +37,8 @@ pub unsafe extern "C" fn rmw_callback<T>(
     length_current: u64,
     modification: *mut u8,
     length_modification: u64,
-    dst: *mut u8,
-) -> u64
+    _dst: *mut u8,
+) -> ffi::faster_rmw_callback_result
 where
     T: Serialize + DeserializeOwned + FasterRmw,
 {
@@ -49,12 +49,20 @@ where
     ))
     .unwrap();
     let modified = val.rmw(modif);
-    let encoded = bincode::serialize(&modified).unwrap();
-    let size = encoded.len();
+    let mut encoded = bincode::serialize(&modified).unwrap();
+    let size = encoded.len() as u64;
+    let ptr = encoded.as_mut_ptr();
+    std::mem::forget(encoded);
+    ffi::faster_rmw_callback_result {
+        length: size,
+        value: ptr,
+    }
+    /*
     if dst != std::ptr::null_mut() {
         encoded.as_ptr().copy_to(dst, size);
     }
     size as u64
+    */
 }
 
 pub trait FasterRmw: DeserializeOwned + Serialize {
