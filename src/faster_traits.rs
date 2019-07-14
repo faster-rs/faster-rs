@@ -37,7 +37,6 @@ pub unsafe extern "C" fn rmw_callback<T>(
     length_current: u64,
     modification: *mut u8,
     length_modification: u64,
-    _dst: *mut u8,
 ) -> ffi::faster_rmw_callback_result
 where
     T: Serialize + DeserializeOwned + FasterRmw,
@@ -57,12 +56,6 @@ where
         length: size,
         value: ptr,
     }
-    /*
-    if dst != std::ptr::null_mut() {
-        encoded.as_ptr().copy_to(dst, size);
-    }
-    size as u64
-    */
 }
 
 pub trait FasterRmw: DeserializeOwned + Serialize {
