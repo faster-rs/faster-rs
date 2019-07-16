@@ -32,8 +32,11 @@ pub enum Operation {
 }
 
 fn cpuset_for_core(topology: &Topology, idx: usize) -> CpuSet {
+    let num_cores = {
+        topology.objects_with_type(&ObjectType::Core).unwrap().len()
+    };
     let cores = (*topology).objects_with_type(&ObjectType::Core).unwrap();
-    match cores.get(idx) {
+    match cores.get(idx % num_cores) {
         Some(val) => val.cpuset().unwrap(),
         None => panic!("No Core found with id {}", idx),
     }
