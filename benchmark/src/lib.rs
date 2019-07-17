@@ -26,8 +26,6 @@ const K_TXN_COUNT: usize = 1000000000;
 
 const K_NANOS_PER_SECOND: usize = 1000000000;
 
-const K_THREAD_STACK_SIZE: usize = 4 * 1024 * 1024;
-
 pub enum Operation {
     Read,
     Upsert,
@@ -220,7 +218,6 @@ pub fn run_benchmark<F: Fn(ThreadRng) -> Operation + Send + Copy + 'static>(
 
         threads.push(
             std::thread::Builder::new()
-                .stack_size(K_THREAD_STACK_SIZE)
                 .spawn(move || {
                     {
                         // Bind thread to core
