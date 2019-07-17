@@ -67,7 +67,7 @@ fn main() {
                     "read_upsert_50_50",
                     "rmw_100",
                     "upsert_100",
-                    "read_100"
+                    "read_100",
                 ])),
         )
         .subcommand(
@@ -140,7 +140,10 @@ fn main() {
                 Err(_) => eprintln!("Unable to clear storage"),
             }
         }
-        println!("{} threads: {:?} ops/second/thread", num_threads, benchmark_results);
+        println!(
+            "{} threads: {:?} ops/second/thread",
+            num_threads, benchmark_results
+        );
     } else if let Some(matches) = matches.subcommand_matches("generate-keys") {
         let output_file = matches
             .value_of("output")

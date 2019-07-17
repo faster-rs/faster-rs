@@ -1,9 +1,12 @@
 extern crate hwloc;
 extern crate libc;
+extern crate rand;
 extern crate regex;
 
 use faster_rs::FasterKv;
 use hwloc::{CpuSet, ObjectType, Topology, CPUBIND_THREAD};
+use rand::prelude::ThreadRng;
+use rand::Rng;
 use regex::Regex;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
@@ -72,23 +75,22 @@ pub fn generate_sequential_keys(out_file: &str, workload: &str) {
     }
 }
 
-pub fn read_upsert5050(key: usize) -> Operation {
-    match key % 2 {
-        0 => Operation::Read,
-        1 => Operation::Upsert,
-        _ => panic!(),
+pub fn read_upsert5050(mut thread_rng: ThreadRng) -> Operation {
+    if thread_rng.gen() {
+        return Operation::Read;
     }
-}
-
-pub fn rmw_100(_key: usize) -> Operation {
-    Operation::Rmw
-}
-
-pub fn upsert_100(_key: usize) -> Operation {
     Operation::Upsert
 }
 
-pub fn read_100(_key: usize) -> Operation {
+pub fn rmw_100(_thread_rng: ThreadRng) -> Operation {
+    Operation::Rmw
+}
+
+pub fn upsert_100(_thread_rng: ThreadRng) -> Operation {
+    Operation::Upsert
+}
+
+pub fn read_100(_thread_rng: ThreadRng) -> Operation {
     Operation::Read
 }
 
@@ -196,7 +198,7 @@ pub fn populate_store(store: &Arc<FasterKv>, keys: &Arc<Vec<u64>>, num_threads: 
     println!("Store Size: {}", store.size());
 }
 
-pub fn run_benchmark<F: Fn(usize) -> Operation + Send + Copy + 'static>(
+pub fn run_benchmark<F: Fn(ThreadRng) -> Operation + Send + Copy + 'static>(
     store: &Arc<FasterKv>,
     keys: &Arc<Vec<u64>>,
     num_threads: u8,
@@ -234,6 +236,8 @@ pub fn run_benchmark<F: Fn(usize) -> Operation + Send + Copy + 'static>(
                     let mut upserts = 0;
                     let mut rmws = 0;
 
+                    let rng = rand::thread_rng();
+
                     let _session = store.start_session();
 
                     barrier.wait();
@@ -251,7 +255,7 @@ pub fn run_benchmark<F: Fn(usize) -> Operation + Send + Copy + 'static>(
                                     store.complete_pending(false);
                                 }
                             }
-                            match op_allocator(i) {
+                            match op_allocator(rng) {
                                 Operation::Read => {
                                     let (_, _): (u8, Receiver<i32>) =
                                         store.read(keys.get(i).unwrap(), 1);
