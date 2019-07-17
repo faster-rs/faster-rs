@@ -13,7 +13,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::os::unix::prelude::FileExt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::Receiver;
-use std::sync::{Arc, Barrier, Mutex, Condvar};
+use std::sync::{Arc, Barrier, Condvar, Mutex};
 use std::time::{Duration, Instant};
 
 const K_CHECKPOINT_SECONDS: u64 = 30;

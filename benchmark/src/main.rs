@@ -183,7 +183,8 @@ fn main() {
 
         for _ in 0..3 {
             for num_threads in &thread_configurations {
-                let store = Arc::new(FasterKv::new(table_size, log_size, dir_path.clone()).unwrap());
+                let store =
+                    Arc::new(FasterKv::new(table_size, log_size, dir_path.clone()).unwrap());
                 println!("Populating datastore");
                 populate_store(&store, &load_keys, 48);
                 println!("Beginning benchmark");
