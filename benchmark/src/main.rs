@@ -120,7 +120,7 @@ fn main() {
         };
 
         let table_size: u64 = 134217728;
-        let log_size: u64 = 32 * 1024 * 1024 * 1024; // 32 GB
+        let log_size: u64 = 64 * 1024 * 1024 * 1024; // 64 GB
         let (load_keys, txn_keys) = load_files(load_keys_file, run_keys_file);
         let load_keys = Arc::new(load_keys);
         let txn_keys = Arc::new(txn_keys);
