@@ -120,8 +120,7 @@ fn main() {
         };
 
         let table_size: u64 = 134217728;
-        let log_size: u64 = 17179869184;
-        let dir_path = String::from("benchmark_store");
+        let log_size: u64 = 32 * 1024 * 1024 * 1024; // 32 GB
         let (load_keys, txn_keys) = load_files(load_keys_file, run_keys_file);
         let load_keys = Arc::new(load_keys);
         let txn_keys = Arc::new(txn_keys);
@@ -129,16 +128,12 @@ fn main() {
         let mut benchmark_results = Vec::new();
 
         for _ in 0..3 {
-            let store = Arc::new(FasterKv::new(table_size, log_size, dir_path.clone()).unwrap());
+            let store = Arc::new(FasterKv::new_in_memory(table_size, log_size));
             println!("Populating datastore");
             populate_store(&store, &load_keys, 48);
             println!("Beginning benchmark");
             let result = run_benchmark(&store, &txn_keys, num_threads, op_allocator);
             benchmark_results.push(result);
-            match store.clean_storage() {
-                Ok(_) => { /*no-op*/ }
-                Err(_) => eprintln!("Unable to clear storage"),
-            }
         }
         println!(
             "{} threads: {:?} ops/second/thread",
@@ -173,7 +168,6 @@ fn main() {
 
         let table_size: u64 = 134217728;
         let log_size: u64 = 32 * 1024 * 1024 * 1024; // 32 GB
-        let dir_path = String::from("benchmark_store");
         let (load_keys, txn_keys) = load_files(load_keys_file, run_keys_file);
         let load_keys = Arc::new(load_keys);
         let txn_keys = Arc::new(txn_keys);
@@ -183,18 +177,13 @@ fn main() {
 
         for _ in 0..3 {
             for num_threads in &thread_configurations {
-                let store =
-                    Arc::new(FasterKv::new(table_size, log_size, dir_path.clone()).unwrap());
+                let store = Arc::new(FasterKv::new_in_memory(table_size, log_size));
                 println!("Populating datastore");
                 populate_store(&store, &load_keys, 48);
                 println!("Beginning benchmark");
                 let result = run_benchmark(&store, &txn_keys, *num_threads, op_allocator);
                 let entry = benchmark_results.entry(num_threads).or_insert(Vec::new());
                 entry.push(result);
-                match store.clean_storage() {
-                    Ok(_) => { /*no-op*/ }
-                    Err(_) => eprintln!("Unable to clear storage"),
-                }
             }
         }
 

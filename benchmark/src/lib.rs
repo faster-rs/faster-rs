@@ -13,10 +13,9 @@ use std::io::{BufRead, BufReader, Write};
 use std::os::unix::prelude::FileExt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::Receiver;
-use std::sync::{Arc, Barrier, Condvar, Mutex};
+use std::sync::{Arc, Barrier, Mutex};
 use std::time::{Duration, Instant};
 
-const K_CHECKPOINT_SECONDS: u64 = 30;
 const K_COMPLETE_PENDING_INTERVAL: usize = 1600;
 const K_REFRESH_INTERVAL: usize = 64;
 const K_CHUNK_SIZE: usize = 3200;
@@ -33,9 +32,7 @@ pub enum Operation {
 }
 
 fn cpuset_for_core(topology: &Topology, idx: usize) -> CpuSet {
-    let num_cores = {
-        topology.objects_with_type(&ObjectType::Core).unwrap().len()
-    };
+    let num_cores = { topology.objects_with_type(&ObjectType::Core).unwrap().len() };
     let cores = (*topology).objects_with_type(&ObjectType::Core).unwrap();
     match cores.get(idx % num_cores) {
         Some(val) => val.cpuset().unwrap(),
@@ -290,32 +287,8 @@ pub fn run_benchmark<F: Fn(ThreadRng) -> Operation + Send + Copy + 'static>(
     }
 
     barrier.wait();
-    let pair = Arc::new((Mutex::new(false), Condvar::new()));
-    let pair2 = Arc::clone(&pair);
-    let store = Arc::clone(&store);
-    std::thread::spawn(move || {
-        let &(ref lock, ref cvar) = &*pair2;
-        let mut finished = lock.lock().unwrap();
-        let mut last_checkpoint = Instant::now();
-        let mut num_checkpoints = 0;
-
-        while threads_waiting.load(Ordering::SeqCst) > 0 {
-            std::thread::sleep(Duration::from_secs(1));
-            if Instant::now().duration_since(last_checkpoint).as_secs() > K_CHECKPOINT_SECONDS {
-                println!("Starting checkpoint {}", num_checkpoints);
-                store.checkpoint();
-                num_checkpoints += 1;
-                last_checkpoint = Instant::now();
-            }
-        }
-        *finished = true;
-        cvar.notify_one();
-    });
-
-    let &(ref lock, ref cvar) = &*pair;
-    let mut finished = lock.lock().unwrap();
-    while !*finished {
-        finished = cvar.wait(finished).unwrap();
+    while threads_waiting.load(Ordering::SeqCst) > 0 {
+        std::thread::sleep(Duration::from_secs(30));
     }
 
     let mut total_counts = (0, 0, 0, 0);
