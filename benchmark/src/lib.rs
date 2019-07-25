@@ -104,7 +104,7 @@ pub fn load_files(load_file: &str, run_file: &str) -> (Vec<u64>, Vec<u64>) {
         let bytes_read = load_file.read_at(&mut buffer, offset).unwrap();
         for i in 0..(bytes_read / 8) {
             let mut num = [0; 8];
-            num.copy_from_slice(&buffer[i..i + 8]);
+            num.copy_from_slice(&buffer[i * 8..(i + 1) * 8]);
             init_keys.insert(count, u64::from_be_bytes(num));
             count += 1;
         }
@@ -129,7 +129,7 @@ pub fn load_files(load_file: &str, run_file: &str) -> (Vec<u64>, Vec<u64>) {
         let bytes_read = run_file.read_at(&mut buffer, offset).unwrap();
         for i in 0..(bytes_read / 8) {
             let mut num = [0; 8];
-            num.copy_from_slice(&buffer[i..i + 8]);
+            num.copy_from_slice(&buffer[i * 8..(i + 1) * 8]);
             run_keys.insert(count, u64::from_be_bytes(num));
             count += 1;
         }
