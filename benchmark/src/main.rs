@@ -125,9 +125,9 @@ fn main() {
         let load_keys = Arc::new(load_keys);
         let txn_keys = Arc::new(txn_keys);
 
-        let mut benchmark_results = Vec::new();
+        let mut benchmark_results = Vec::with_capacity(4);
 
-        for _ in 0..3 {
+        for _ in 0..4 {
             let store = Arc::new(FasterKv::new_in_memory(table_size, log_size));
             println!("Populating datastore");
             populate_store(&store, &load_keys, 48);
@@ -175,14 +175,16 @@ fn main() {
         let thread_configurations = vec![1, 2, 4, 8, 16, 32, 48];
         let mut benchmark_results = HashMap::new();
 
-        for _ in 0..3 {
+        for _ in 0..4 {
             for num_threads in &thread_configurations {
                 let store = Arc::new(FasterKv::new_in_memory(table_size, log_size));
                 println!("Populating datastore");
                 populate_store(&store, &load_keys, 48);
                 println!("Beginning benchmark");
                 let result = run_benchmark(&store, &txn_keys, *num_threads, op_allocator);
-                let entry = benchmark_results.entry(num_threads).or_insert(Vec::new());
+                let entry = benchmark_results
+                    .entry(num_threads)
+                    .or_insert(Vec::with_capacity(4));
                 entry.push(result);
             }
         }
