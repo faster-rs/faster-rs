@@ -237,7 +237,9 @@ fn main() {
         let mut benchmark_results = Vec::with_capacity(4);
 
         for _ in 0..4 {
-            let store = Arc::new(FasterKv::new_in_memory(table_size, log_size));
+            let store = Arc::new(
+                FasterKv::new(table_size, log_size, String::from("benchmark-store")).unwrap(),
+            );
             println!("Populating datastore");
             populate_store(&store, &load_keys, 48);
 
@@ -258,6 +260,8 @@ fn main() {
             let result = run_benchmark(&store, &txn_keys, 8, rmw_100);
             done.store(true, Ordering::SeqCst);
             benchmark_results.push(result);
+
+            let _ = store.clean_storage();
         }
         println!("{} GB: {:?} ops/second/thread", log_size, benchmark_results);
     }
