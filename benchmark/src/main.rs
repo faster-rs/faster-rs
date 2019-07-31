@@ -219,7 +219,7 @@ fn main() {
     } else if let Some(matches) = matches.subcommand_matches("larger-than-memory") {
         let log_size = matches
             .value_of("log-size")
-            .expect("Number of threads not specified");
+            .expect("Log Size not specified");
         let log_size: u64 = log_size.parse().expect("log-size argument must be integer");
         let load_keys_file = matches
             .value_of("load")
@@ -228,7 +228,7 @@ fn main() {
             .value_of("run")
             .expect("File containing run transactions not specified");
 
-        let table_size: u64 = 134217728;
+        let table_size: u64 = 33554432;
         let log_size: u64 = log_size * 1024 * 1024 * 1024;
         let (load_keys, txn_keys) = load_files(load_keys_file, run_keys_file);
         let load_keys = Arc::new(load_keys);
