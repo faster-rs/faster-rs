@@ -4,7 +4,9 @@ use benchmark::*;
 use clap::{App, Arg, SubCommand};
 use faster_rs::FasterKv;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 fn main() {
     let matches = App::new("faster-rs Benchmark")
@@ -69,6 +71,28 @@ fn main() {
                     "upsert_100",
                     "read_100",
                 ])),
+        )
+        .subcommand(
+            SubCommand::with_name("larger-than-memory")
+                .about("Run benchmark with a defined in-memory log size")
+                .arg(
+                    Arg::with_name("log-size")
+                        .short("l")
+                        .required(true)
+                        .takes_value(true)
+                        .display_order(1)
+                        .help("Size of in-memory log (GB)"),
+                )
+                .arg(
+                    Arg::with_name("load")
+                        .required(true)
+                        .help("Path to YCSB load keys"),
+                )
+                .arg(
+                    Arg::with_name("run")
+                        .required(true)
+                        .help("Path to YCSB run keys"),
+                ),
         )
         .subcommand(
             SubCommand::with_name("generate-keys")
@@ -192,5 +216,49 @@ fn main() {
         for (num_threads, result) in benchmark_results {
             println!("{} threads: {:?} ops/second/thread", num_threads, result);
         }
+    } else if let Some(matches) = matches.subcommand_matches("larger-than-memory") {
+        let log_size = matches
+            .value_of("log-size")
+            .expect("Number of threads not specified");
+        let log_size: u64 = log_size.parse().expect("log-size argument must be integer");
+        let load_keys_file = matches
+            .value_of("load")
+            .expect("File containing load transactions not specified");
+        let run_keys_file = matches
+            .value_of("run")
+            .expect("File containing run transactions not specified");
+
+        let table_size: u64 = 134217728;
+        let log_size: u64 = log_size * 1024 * 1024 * 1024;
+        let (load_keys, txn_keys) = load_files(load_keys_file, run_keys_file);
+        let load_keys = Arc::new(load_keys);
+        let txn_keys = Arc::new(txn_keys);
+
+        let mut benchmark_results = Vec::with_capacity(4);
+
+        for _ in 0..4 {
+            let store = Arc::new(FasterKv::new_in_memory(table_size, log_size));
+            println!("Populating datastore");
+            populate_store(&store, &load_keys, 48);
+
+            let done = Arc::new(AtomicBool::new(false));
+            let done_clone = Arc::clone(&done);
+            let store_clone = Arc::clone(&store);
+            std::thread::spawn(move || {
+                while !done_clone.load(Ordering::SeqCst) {
+                    std::thread::sleep(Duration::from_secs(30));
+                    println!(
+                        "Checkpoint token : {}",
+                        store_clone.checkpoint().unwrap().token
+                    );
+                }
+            });
+
+            println!("Beginning benchmark");
+            let result = run_benchmark(&store, &txn_keys, 8, rmw_100);
+            done.store(true, Ordering::SeqCst);
+            benchmark_results.push(result);
+        }
+        println!("{} GB: {:?} ops/second/thread", log_size, benchmark_results);
     }
 }
