@@ -4,9 +4,7 @@ use benchmark::*;
 use clap::{App, Arg, SubCommand};
 use faster_rs::FasterKv;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
 
 fn main() {
     let matches = App::new("faster-rs Benchmark")
@@ -243,26 +241,16 @@ fn main() {
             println!("Populating datastore");
             populate_store(&store, &load_keys, 48);
 
-            let done = Arc::new(AtomicBool::new(false));
-            let done_clone = Arc::clone(&done);
-            let store_clone = Arc::clone(&store);
-            std::thread::spawn(move || {
-                while !done_clone.load(Ordering::SeqCst) {
-                    std::thread::sleep(Duration::from_secs(30));
-                    println!(
-                        "Checkpoint token : {}",
-                        store_clone.checkpoint().unwrap().token
-                    );
-                }
-            });
-
             println!("Beginning benchmark");
             let result = run_benchmark(&store, &txn_keys, 8, rmw_100);
-            done.store(true, Ordering::SeqCst);
             benchmark_results.push(result);
 
             let _ = store.clean_storage();
         }
-        println!("{} GB: {:?} ops/second/thread", log_size, benchmark_results);
+        println!(
+            "{} GB: {:?} ops/second/thread",
+            log_size / (1024 * 1024 * 1024),
+            benchmark_results
+        );
     }
 }

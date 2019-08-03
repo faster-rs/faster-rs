@@ -246,7 +246,7 @@ pub fn run_benchmark<F: Fn(ThreadRng) -> Operation + Send + Copy + 'static>(
                             if i % K_REFRESH_INTERVAL == 0 {
                                 store.refresh();
                                 if i % K_COMPLETE_PENDING_INTERVAL == 0 {
-                                    store.complete_pending(false);
+                                    store.complete_pending(true);
                                 }
                             }
                             match op_allocator(rng) {
