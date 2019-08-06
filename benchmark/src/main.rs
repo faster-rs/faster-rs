@@ -82,6 +82,14 @@ fn main() {
                         .help("Size of in-memory log (GB)"),
                 )
                 .arg(
+                    Arg::with_name("num-threads")
+                        .short("n")
+                        .required(true)
+                        .takes_value(true)
+                        .display_order(2)
+                        .help("Number of threads to use"),
+                )
+                .arg(
                     Arg::with_name("load")
                         .required(true)
                         .help("Path to YCSB load keys"),
@@ -219,6 +227,12 @@ fn main() {
             .value_of("log-size")
             .expect("Log Size not specified");
         let log_size: u64 = log_size.parse().expect("log-size argument must be integer");
+        let num_threads = matches
+            .value_of("num-threads")
+            .expect("Number of threads not specified");
+        let num_threads: u8 = num_threads
+            .parse()
+            .expect("num-threads argument must be integer");
         let load_keys_file = matches
             .value_of("load")
             .expect("File containing load transactions not specified");
@@ -242,7 +256,7 @@ fn main() {
             populate_store(&store, &load_keys, 48);
 
             println!("Beginning benchmark");
-            let result = run_benchmark(&store, &txn_keys, 8, rmw_100);
+            let result = run_benchmark(&store, &txn_keys, num_threads, rmw_100);
             benchmark_results.push(result);
 
             let _ = store.clean_storage();
