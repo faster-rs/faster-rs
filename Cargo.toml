@@ -1,6 +1,6 @@
 [package]
 name = "faster-rs"
-version = "0.8.5"
+version = "0.8.6"
 authors = ["Max Meldrum <mmeldrum@kth.se>", "Matthew Brookes <mbrookes1304@gmail.com>"]
 edition = "2018"
 keywords = ["concurrent", "embedded", "key-value-store"]
@@ -12,7 +12,7 @@ readme = "README.md"
 [dependencies]
 bincode = "1.1.2"
 libc = "0.2"
-libfaster-sys = { path = "libfaster-sys", version = "0.8.3" }
+libfaster-sys = { path = "libfaster-sys", version = "0.8.4" }
 serde = "1.0.89"
 serde_derive = "1.0.89"
 
