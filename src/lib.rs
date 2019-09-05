@@ -1,20 +1,18 @@
-extern crate bincode;
 extern crate libc;
 extern crate libfaster_sys as ffi;
 
 mod builder;
+mod faster_callbacks;
 mod faster_error;
-mod faster_traits;
-mod impls;
 pub mod status;
 mod util;
 
 pub use crate::builder::FasterKvBuilder;
+use crate::faster_callbacks::{read_callback, rmw_callback};
 pub use crate::faster_error::FasterError;
-use crate::faster_traits::{read_callback, rmw_callback};
-pub use crate::faster_traits::{FasterKey, FasterRmw, FasterValue};
 use crate::util::*;
 
+use libc::c_void;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::fs;
@@ -33,75 +31,86 @@ pub struct FasterKv {
 impl FasterKv {
     pub fn upsert<K, V>(&self, key: &K, value: &V, monotonic_serial_number: u64) -> u8
     where
-        K: FasterKey,
-        V: FasterValue,
+        K: AsRef<[u8]>,
+        V: AsRef<[u8]>,
     {
-        let mut encoded_key = bincode::serialize(key).unwrap();
-        let encoded_key_length = encoded_key.len();
-        let encoded_key_ptr = encoded_key.as_mut_ptr();
-        let mut encoded_value = bincode::serialize(value).unwrap();
-        let encoded_value_length = encoded_value.len();
-        let encoded_value_ptr = encoded_value.as_mut_ptr();
-        std::mem::forget(encoded_key);
-        std::mem::forget(encoded_value);
+        let mut cloned_key = Vec::with_capacity(key.as_ref().len());
+        cloned_key.extend_from_slice(key.as_ref());
+        let cloned_key_length = cloned_key.len();
+        let cloned_key_ptr = cloned_key.as_ptr();
+        let mut cloned_value = Vec::with_capacity(value.as_ref().len());
+        cloned_value.extend_from_slice(value.as_ref());
+        let cloned_value_length = cloned_value.len();
+        let cloned_value_ptr = cloned_value.as_mut_ptr();
+        std::mem::forget(cloned_key);
+        std::mem::forget(cloned_value);
         unsafe {
             ffi::faster_upsert(
                 self.faster_t,
-                encoded_key_ptr,
-                encoded_key_length as u64,
-                encoded_value_ptr,
-                encoded_value_length as u64,
+                cloned_key_ptr,
+                cloned_key_length as u64,
+                cloned_value_ptr,
+                cloned_value_length as u64,
                 monotonic_serial_number,
             )
         }
     }
 
-    pub fn read<K, V>(&self, key: &K, monotonic_serial_number: u64) -> (u8, Receiver<V>)
+    pub fn read<K>(&self, key: K, monotonic_serial_number: u64) -> (u8, Receiver<Vec<u8>>)
     where
-        K: FasterKey,
-        V: FasterValue,
+        K: AsRef<[u8]>,
     {
-        let mut encoded_key = bincode::serialize(key).unwrap();
-        let encoded_key_length = encoded_key.len();
-        let encoded_key_ptr = encoded_key.as_mut_ptr();
+        let mut cloned_key = Vec::with_capacity(key.as_ref().len());
+        cloned_key.extend_from_slice(key.as_ref());
+        let cloned_key_length = cloned_key.len();
+        let cloned_key_ptr = cloned_key.as_ptr();
         let (sender, receiver) = channel();
-        let sender_ptr: *mut Sender<V> = Box::into_raw(Box::new(sender));
-        std::mem::forget(encoded_key);
+        let sender_ptr: *mut Sender<Vec<u8>> = Box::into_raw(Box::new(sender));
+        std::mem::forget(cloned_key);
         let status = unsafe {
             ffi::faster_read(
                 self.faster_t,
-                encoded_key_ptr,
-                encoded_key_length as u64,
+                cloned_key_ptr,
+                cloned_key_length as u64,
                 monotonic_serial_number,
-                Some(read_callback::<V>),
+                Some(read_callback),
                 sender_ptr as *mut libc::c_void,
             )
         };
         (status, receiver)
     }
 
-    pub fn rmw<K, V>(&self, key: &K, value: &V, monotonic_serial_number: u64) -> u8
+    pub fn rmw<K, V>(
+        &self,
+        key: K,
+        value: V,
+        rmw_logic: fn(current: &[u8], modification: &[u8]) -> Vec<u8>,
+        monotonic_serial_number: u64,
+    ) -> u8
     where
-        K: FasterKey,
-        V: FasterRmw,
+        K: AsRef<[u8]>,
+        V: AsRef<[u8]>,
     {
-        let mut encoded_key = bincode::serialize(key).unwrap();
-        let encoded_key_length = encoded_key.len();
-        let encoded_key_ptr = encoded_key.as_mut_ptr();
-        let mut encoded_value = bincode::serialize(value).unwrap();
-        let encoded_value_length = encoded_value.len();
-        let encoded_value_ptr = encoded_value.as_mut_ptr();
-        std::mem::forget(encoded_key);
-        std::mem::forget(encoded_value);
+        let mut cloned_key = Vec::with_capacity(key.as_ref().len());
+        cloned_key.extend_from_slice(key.as_ref());
+        let cloned_key_length = cloned_key.len();
+        let cloned_key_ptr = cloned_key.as_ptr();
+        let mut cloned_value = Vec::with_capacity(value.as_ref().len());
+        cloned_value.extend_from_slice(value.as_ref());
+        let cloned_value_length = cloned_value.len();
+        let cloned_value_ptr = cloned_value.as_ptr();
+        std::mem::forget(cloned_key);
+        std::mem::forget(cloned_value);
         unsafe {
             ffi::faster_rmw(
                 self.faster_t,
-                encoded_key_ptr,
-                encoded_key_length as u64,
-                encoded_value_ptr,
-                encoded_value_length as u64,
+                cloned_key_ptr,
+                cloned_key_length as u64,
+                cloned_value_ptr,
+                cloned_value_length as u64,
                 monotonic_serial_number,
-                Some(rmw_callback::<V>),
+                Some(rmw_callback),
+                &rmw_logic as *const _ as *mut c_void,
             )
         }
     }
