@@ -18,7 +18,64 @@ use crate::util::*;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::fs;
+use std::os::raw::c_void;
 use std::sync::mpsc::{channel, Receiver, Sender};
+
+pub struct FasterIteratorRecord<K, V> {
+    pub key: Option<K>,
+    pub value: Option<V>,
+    result: *mut ffi::faster_iterator_result,
+}
+
+impl<K, V> Drop for FasterIteratorRecord<K, V> {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::faster_iterator_result_destroy(self.result);
+        }
+    }
+}
+
+pub struct FasterIterator {
+    iterator: *mut c_void,
+    record: *mut c_void,
+}
+
+impl Drop for FasterIterator {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::faster_scan_in_memory_destroy(self.iterator);
+            ffi::faster_scan_in_memory_record_destroy(self.record);
+        }
+    }
+}
+
+impl FasterIterator {
+    pub fn get_next<K, V>(&self) -> Option<FasterIteratorRecord<K, V>>
+    where
+        K: FasterKey,
+        V: FasterValue,
+    {
+        let result = unsafe { ffi::faster_iterator_get_next(self.iterator, self.record) };
+        let status = unsafe { (*result).status };
+        if !status {
+            unsafe { ffi::faster_iterator_result_destroy(result) };
+            return None;
+        }
+        let key = Some(
+            bincode::deserialize(unsafe {
+                std::slice::from_raw_parts((*result).key, (*result).key_length as usize)
+            })
+            .unwrap(),
+        );
+        let value = Some(
+            bincode::deserialize(unsafe {
+                std::slice::from_raw_parts((*result).value, (*result).value_length as usize)
+            })
+            .unwrap(),
+        );
+        Some(FasterIteratorRecord { key, value, result })
+    }
+}
 
 #[no_mangle]
 pub unsafe extern "C" fn deallocate_vec(vec: *mut u8, length: u64) {
@@ -108,7 +165,7 @@ impl FasterKv {
 
     pub fn delete<K>(&self, key: &K, monotonic_serial_number: u64) -> u8
     where
-        K: FasterKey
+        K: FasterKey,
     {
         let mut encoded_key = bincode::serialize(key).unwrap();
         let encoded_key_length = encoded_key.len();
@@ -119,9 +176,15 @@ impl FasterKv {
                 self.faster_t,
                 encoded_key_ptr,
                 encoded_key_length as u64,
-                monotonic_serial_number
+                monotonic_serial_number,
             )
         }
+    }
+
+    pub fn get_iterator(&self) -> FasterIterator {
+        let iterator = unsafe { ffi::faster_scan_in_memory_init(self.faster_t) };
+        let record = unsafe { ffi::faster_scan_in_memory_record_init() };
+        FasterIterator { iterator, record }
     }
 
     pub fn size(&self) -> u64 {
