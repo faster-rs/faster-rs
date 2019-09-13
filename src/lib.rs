@@ -106,6 +106,24 @@ impl FasterKv {
         }
     }
 
+    pub fn delete<K>(&self, key: &K, monotonic_serial_number: u64) -> u8
+    where
+        K: FasterKey
+    {
+        let mut encoded_key = bincode::serialize(key).unwrap();
+        let encoded_key_length = encoded_key.len();
+        let encoded_key_ptr = encoded_key.as_mut_ptr();
+        std::mem::forget(encoded_key);
+        unsafe {
+            ffi::faster_delete(
+                self.faster_t,
+                encoded_key_ptr,
+                encoded_key_length as u64,
+                monotonic_serial_number
+            )
+        }
+    }
+
     pub fn size(&self) -> u64 {
         unsafe { ffi::faster_size(self.faster_t) }
     }

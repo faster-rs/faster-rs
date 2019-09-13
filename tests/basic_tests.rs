@@ -34,6 +34,27 @@ fn faster_read_inserted_value() {
 }
 
 #[test]
+fn faster_delete_inserted_value() {
+    let store = FasterKv::default();
+    let key: u64 = 1;
+    let value: u64 = 1337;
+
+    let upsert = store.upsert(&key, &value, 1);
+    assert!((upsert == status::OK || upsert == status::PENDING) == true);
+
+    let (res, recv): (u8, Receiver<u64>) = store.read(&key, 1);
+    assert!(res == status::OK);
+    assert!(recv.recv().unwrap() == value);
+
+    let delete = store.delete(&key, 1);
+    assert!((delete == status::OK || delete == status::PENDING) == true);
+
+    let (res, recv): (u8, Receiver<u64>) = store.read(&key, 1);
+    assert!(res == status::NOT_FOUND);
+    assert!(recv.recv().is_err());
+}
+
+#[test]
 fn faster_read_missing_value_recv_error() {
     let store = FasterKv::default();
     let key: u64 = 1;
