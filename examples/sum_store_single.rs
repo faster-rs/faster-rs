@@ -5,7 +5,7 @@ use std::env;
 use std::sync::mpsc::Receiver;
 
 const TABLE_SIZE: u64 = 1 << 15;
-const LOG_SIZE: u64 = 17179869184;
+const LOG_SIZE: u64 = 1024 * 1024 * 1024;
 const NUM_OPS: u64 = 1 << 25;
 const NUM_UNIQUE_KEYS: u64 = 1 << 23;
 const REFRESH_INTERVAL: u64 = 1 << 8;
@@ -42,7 +42,11 @@ fn main() {
 }
 
 fn populate() -> () {
-    if let Ok(store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, STORAGE_DIR.to_string()) {
+    if let Ok(store) = FasterKvBuilder::new(TABLE_SIZE, LOG_SIZE)
+        .with_disk(STORAGE_DIR)
+        .set_pre_allocate_log(true)
+        .build()
+    {
         // Populate Store
         let session = store.start_session();
         println!("Starting Session {}", session);
@@ -76,7 +80,11 @@ fn populate() -> () {
 
 fn recover(token: String) -> () {
     println!("Attempting to recover");
-    if let Ok(recover_store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, STORAGE_DIR.to_string()) {
+    if let Ok(recover_store) = FasterKvBuilder::new(TABLE_SIZE, LOG_SIZE)
+        .with_disk(STORAGE_DIR)
+        .set_pre_allocate_log(true)
+        .build()
+    {
         match recover_store.recover(token.clone(), token.clone()) {
             Ok(rec) => {
                 println!("Recover version: {}", rec.version);

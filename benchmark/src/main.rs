@@ -2,7 +2,7 @@ extern crate clap;
 
 use benchmark::*;
 use clap::{App, Arg, SubCommand};
-use faster_rs::FasterKv;
+use faster_rs::FasterKvBuilder;
 use std::sync::Arc;
 
 fn main() {
@@ -99,7 +99,7 @@ fn main() {
         let table_size: u64 = 134217728;
         let log_size: u64 = 17179869184;
         let dir_path = String::from("benchmark_store");
-        let store = Arc::new(FasterKv::new(table_size, log_size, dir_path.clone()).unwrap());
+        let store = Arc::new(FasterKvBuilder::new(table_size, log_size).with_disk(&dir_path).build().unwrap());
         let (load_keys, txn_keys) = load_files(load_keys_file, run_keys_file);
         let load_keys = Arc::new(load_keys);
         let txn_keys = Arc::new(txn_keys);

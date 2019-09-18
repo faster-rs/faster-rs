@@ -1,19 +1,12 @@
 extern crate faster_rs;
-extern crate tempfile;
 
 use faster_rs::{status, FasterKv};
 use std::collections::HashSet;
 use std::sync::mpsc::Receiver;
-use tempfile::TempDir;
-
-const TABLE_SIZE: u64 = 1 << 14;
-const LOG_SIZE: u64 = 17179869184;
 
 #[test]
 fn faster_check() {
-    let tmp_dir = TempDir::new().unwrap();
-    let dir_path = tmp_dir.path().to_string_lossy().into_owned();
-    let store = FasterKv::new(TABLE_SIZE, LOG_SIZE, dir_path).unwrap();
+    let store = FasterKv::default();
     let key: u64 = 1;
     let value: u64 = 1337;
 
@@ -28,9 +21,7 @@ fn faster_check() {
 
 #[test]
 fn faster_read_inserted_value() {
-    let tmp_dir = TempDir::new().unwrap();
-    let dir_path = tmp_dir.path().to_string_lossy().into_owned();
-    let store = FasterKv::new(TABLE_SIZE, LOG_SIZE, dir_path).unwrap();
+    let store = FasterKv::default();
     let key: u64 = 1;
     let value: u64 = 1337;
 
@@ -44,9 +35,7 @@ fn faster_read_inserted_value() {
 
 #[test]
 fn faster_read_missing_value_recv_error() {
-    let tmp_dir = TempDir::new().unwrap();
-    let dir_path = tmp_dir.path().to_string_lossy().into_owned();
-    let store = FasterKv::new(TABLE_SIZE, LOG_SIZE, dir_path).unwrap();
+    let store = FasterKv::default();
     let key: u64 = 1;
 
     let (res, recv): (u8, Receiver<u64>) = store.read(&key, 1);
@@ -56,9 +45,7 @@ fn faster_read_missing_value_recv_error() {
 
 #[test]
 fn faster_rmw_changes_values() {
-    let tmp_dir = TempDir::new().unwrap();
-    let dir_path = tmp_dir.path().to_string_lossy().into_owned();
-    let store = FasterKv::new(TABLE_SIZE, LOG_SIZE, dir_path).unwrap();
+    let store = FasterKv::default();
     let key: u64 = 1;
     let value: u64 = 1337;
     let modification: u64 = 100;
@@ -80,9 +67,7 @@ fn faster_rmw_changes_values() {
 
 #[test]
 fn faster_rmw_without_upsert() {
-    let tmp_dir = TempDir::new().unwrap();
-    let dir_path = tmp_dir.path().to_string_lossy().into_owned();
-    let store = FasterKv::new(TABLE_SIZE, LOG_SIZE, dir_path).unwrap();
+    let store = FasterKv::default();
     let key: u64 = 1;
     let modification: u64 = 100;
 
@@ -96,9 +81,7 @@ fn faster_rmw_without_upsert() {
 
 #[test]
 fn faster_rmw_string() {
-    let tmp_dir = TempDir::new().unwrap();
-    let dir_path = tmp_dir.path().to_string_lossy().into_owned();
-    let store = FasterKv::new(TABLE_SIZE, LOG_SIZE, dir_path).unwrap();
+    let store = FasterKv::default();
     let key: u64 = 1;
     let value = String::from("Hello, ");
     let modification = String::from("World!");
@@ -120,9 +103,7 @@ fn faster_rmw_string() {
 
 #[test]
 fn faster_rmw_vec() {
-    let tmp_dir = TempDir::new().unwrap();
-    let dir_path = tmp_dir.path().to_string_lossy().into_owned();
-    let store = FasterKv::new(TABLE_SIZE, LOG_SIZE, dir_path).unwrap();
+    let store = FasterKv::default();
     let key: u64 = 1;
     let value = vec![0, 1, 2];
     let modification = vec![3, 4, 5];
@@ -152,7 +133,7 @@ fn faster_rmw_vec() {
 
 #[test]
 fn faster_rmw_grow_string() {
-    let store = FasterKv::new_in_memory(TABLE_SIZE, LOG_SIZE);
+    let store = FasterKv::default();
     let key = String::from("growing_string");
     let final_string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     for i in 0..final_string.len() {
@@ -167,7 +148,7 @@ fn faster_rmw_grow_string() {
 
 #[test]
 fn faster_rmw_hashset() {
-    let store = FasterKv::new_in_memory(TABLE_SIZE, LOG_SIZE);
+    let store = FasterKv::default();
     let key = String::from("set");
     {
         let a: HashSet<i32> = [1, 2, 3].iter().cloned().collect();

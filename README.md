@@ -6,7 +6,7 @@
 
 ```toml
 [dependencies]
-faster-rs = "0.8.5"
+faster-rs = "0.9.0"
 ```
 
 Includes experimental C interface for FASTER. It is a generic implementation of FASTER that allows arbitrary Key-Value pairs to be stored. This wrapper is only focusing on Linux support.
@@ -41,46 +41,40 @@ use faster_rs::{status, FasterKv};
 use std::sync::mpsc::Receiver;
 
 fn main() {
-    const TABLE_SIZE: u64 = 1 << 14;
-    const LOG_SIZE: u64 = 17179869184;
-
     // Create a Key-Value Store
-    if let Ok(store) = FasterKv::new(TABLE_SIZE, LOG_SIZE, String::from("example_basic_storage")) {
-        let key0: u64 = 1;
-        let value0: u64 = 1000;
-        let modification: u64 = 5;
+    let store = FasterKv::default();
+    let key0: u64 = 1;
+    let value0: u64 = 1000;
+    let modification: u64 = 5;
 
-        // Upsert
-        for i in 0..1000 {
-            let upsert = store.upsert(&(key0 + i), &(value0 + i), i);
-            assert!(upsert == status::OK || upsert == status::PENDING);
-        }
+    // Upsert
+    for i in 0..1000 {
+        let upsert = store.upsert(&(key0 + i), &(value0 + i), i);
+        assert!(upsert == status::OK || upsert == status::PENDING);
+    }
 
-        // Read-Modify-Write
-        for i in 0..1000 {
-            let rmw = store.rmw(&(key0 + i), &(5 as u64), i + 1000);
-            assert!(rmw == status::OK || rmw == status::PENDING);
-        }
+    // Read-Modify-Write
+    for i in 0..1000 {
+        let rmw = store.rmw(&(key0 + i), &(5 as u64), i + 1000);
+        assert!(rmw == status::OK || rmw == status::PENDING);
+    }
 
-        assert!(store.size() > 0);
+    assert!(store.size() > 0);
 
-        // Read
-        for i in 0..1000 {
-            // Note: need to provide type annotation for the Receiver
-            let (read, recv): (u8, Receiver<u64>) = store.read(&(key0 + i), i);
-            assert!(read == status::OK || read == status::PENDING);
-            let val = recv.recv().unwrap();
-            assert_eq!(val, value0 + i + modification);
-            println!("Key: {}, Value: {}", key0 + i, val);
-        }
+    // Read
+    for i in 0..1000 {
+        // Note: need to provide type annotation for the Receiver
+        let (read, recv): (u8, Receiver<u64>) = store.read(&(key0 + i), i);
+        assert!(read == status::OK || read == status::PENDING);
+        let val = recv.recv().unwrap();
+        assert_eq!(val, value0 + i + modification);
+        println!("Key: {}, Value: {}", key0 + i, val);
+    }
 
-        // Clear used storage
-        match store.clean_storage() {
-            Ok(()) => {}
-            Err(_err) => panic!("Unable to clear FASTER directory"),
-        }
-    } else {
-        panic!("Unable to create FASTER directory");
+    // Clear used storage
+    match store.clean_storage() {
+        Ok(()) => {}
+        Err(_err) => panic!("Unable to clear FASTER directory"),
     }
 }
 ```
@@ -106,40 +100,30 @@ struct MyKey {
 }
 
 fn main() {
-    const TABLE_SIZE: u64 = 1 << 14;
-    const LOG_SIZE: u64 = 17179869184;
-
     // Create a Key-Value Store
-    if let Ok(store) = FasterKv::new(
-        TABLE_SIZE,
-        LOG_SIZE,
-        String::from("example_custom_values_storage"),
-    ) {
-        let key = MyKey {
-            foo: String::from("Hello"),
-            bar: String::from("World"),
-        };
-        let value: u64 = 1;
+    let store = FasterKv::default();
+    let key = MyKey {
+        foo: String::from("Hello"),
+        bar: String::from("World"),
+    };
+    let value: u64 = 1;
 
-        // Upsert
-        let upsert = store.upsert(&key, &value, 1);
-        assert!(upsert == status::OK || upsert == status::PENDING);
+    // Upsert
+    let upsert = store.upsert(&key, &value, 1);
+    assert!(upsert == status::OK || upsert == status::PENDING);
 
-        assert!(store.size() > 0);
+    assert!(store.size() > 0);
 
-        // Note: need to provide type annotation for the Receiver
-        let (read, recv): (u8, Receiver<u64>) = store.read(&key, 1);
-        assert!(read == status::OK || read == status::PENDING);
-        let val = recv.recv().unwrap();
-        println!("Key: {:?}, Value: {}", key, val);
+    // Note: need to provide type annotation for the Receiver
+    let (read, recv): (u8, Receiver<u64>) = store.read(&key, 1);
+    assert!(read == status::OK || read == status::PENDING);
+    let val = recv.recv().unwrap();
+    println!("Key: {:?}, Value: {}", key, val);
 
-        // Clear used storage
-        match store.clean_storage() {
-            Ok(()) => {}
-            Err(_err) => panic!("Unable to clear FASTER directory"),
-        }
-    } else {
-        panic!("Unable to create FASTER directory");
+    // Clear used storage
+    match store.clean_storage() {
+        Ok(()) => {}
+        Err(_err) => panic!("Unable to clear FASTER directory"),
     }
 }
 ```
@@ -168,40 +152,30 @@ struct MyValue {
 }
 
 fn main() {
-    const TABLE_SIZE: u64 = 1 << 14;
-    const LOG_SIZE: u64 = 17179869184;
-
     // Create a Key-Value Store
-    if let Ok(store) = FasterKv::new(
-        TABLE_SIZE,
-        LOG_SIZE,
-        String::from("example_custom_values_storage"),
-    ) {
-        let key: u64 = 1;
-        let value = MyValue {
-            foo: String::from("Hello"),
-            bar: String::from("World"),
-        };
+    let store = FasterKv::default();
+    let key: u64 = 1;
+    let value = MyValue {
+        foo: String::from("Hello"),
+        bar: String::from("World"),
+    };
 
-        // Upsert
-        let upsert = store.upsert(&key, &value, 1);
-        assert!(upsert == status::OK || upsert == status::PENDING);
+    // Upsert
+    let upsert = store.upsert(&key, &value, 1);
+    assert!(upsert == status::OK || upsert == status::PENDING);
 
-        assert!(store.size() > 0);
+    assert!(store.size() > 0);
 
-        // Note: need to provide type annotation for the Receiver
-        let (read, recv): (u8, Receiver<MyValue>) = store.read(&key, 1);
-        assert!(read == status::OK || read == status::PENDING);
-        let val = recv.recv().unwrap();
-        println!("Key: {}, Value: {:?}", key, val);
+    // Note: need to provide type annotation for the Receiver
+    let (read, recv): (u8, Receiver<MyValue>) = store.read(&key, 1);
+    assert!(read == status::OK || read == status::PENDING);
+    let val = recv.recv().unwrap();
+    println!("Key: {}, Value: {:?}", key, val);
 
-        // Clear used storage
-        match store.clean_storage() {
-            Ok(()) => {}
-            Err(_err) => panic!("Unable to clear FASTER directory"),
-        }
-    } else {
-        panic!("Unable to create FASTER directory");
+    // Clear used storage
+    match store.clean_storage() {
+        Ok(()) => {}
+        Err(_err) => panic!("Unable to clear FASTER directory"),
     }
 }
 ```

@@ -2,12 +2,14 @@ extern crate bincode;
 extern crate libc;
 extern crate libfaster_sys as ffi;
 
+mod builder;
 mod faster_error;
 mod faster_traits;
 mod impls;
 pub mod status;
 mod util;
 
+pub use crate::builder::FasterKvBuilder;
 pub use crate::faster_error::FasterError;
 use crate::faster_traits::{read_callback, rmw_callback};
 pub use crate::faster_traits::{FasterKey, FasterRmw, FasterValue};
@@ -16,47 +18,19 @@ use crate::util::*;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::fs;
-use std::io;
 use std::sync::mpsc::{channel, Receiver, Sender};
-
-pub struct FasterKv {
-    faster_t: *mut ffi::faster_t,
-    storage_dir: Option<String>,
-}
 
 #[no_mangle]
 pub unsafe extern "C" fn deallocate_vec(vec: *mut u8, length: u64) {
     drop(Vec::from_raw_parts(vec, length as usize, length as usize));
 }
 
+pub struct FasterKv {
+    faster_t: *mut ffi::faster_t,
+    storage_dir: Option<String>,
+}
+
 impl FasterKv {
-    pub fn new(
-        table_size: u64,
-        log_size: u64,
-        storage_name: String,
-    ) -> Result<FasterKv, io::Error> {
-        let saved_dir = storage_name.clone();
-        let storage_str = CString::new(storage_name).unwrap();
-        let ptr_raw = storage_str.into_raw();
-        let faster_t = unsafe {
-            let ft = ffi::faster_open_with_disk(table_size, log_size, ptr_raw);
-            let _ = CString::from_raw(ptr_raw); // retake pointer to free mem
-            ft
-        };
-        Ok(FasterKv {
-            faster_t: faster_t,
-            storage_dir: Some(saved_dir),
-        })
-    }
-
-    pub fn new_in_memory(table_size: u64, log_size: u64) -> FasterKv {
-        let faster_t = unsafe { ffi::faster_open(table_size, log_size) };
-        FasterKv {
-            faster_t,
-            storage_dir: None,
-        }
-    }
-
     pub fn upsert<K, V>(&self, key: &K, value: &V, monotonic_serial_number: u64) -> u8
     where
         K: FasterKey,
@@ -305,6 +279,14 @@ impl FasterKv {
         unsafe {
             ffi::faster_destroy(self.faster_t);
         }
+    }
+}
+
+impl Default for FasterKv {
+    fn default() -> Self {
+        FasterKvBuilder::new(1 << 15, 1024 * 1024 * 1024)
+            .build()
+            .unwrap()
     }
 }
 

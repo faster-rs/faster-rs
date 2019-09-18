@@ -1,16 +1,18 @@
 extern crate faster_rs;
 extern crate tempfile;
 
-use faster_rs::{FasterError, FasterKv};
+use faster_rs::{FasterError, FasterKv, FasterKvBuilder};
 use tempfile::TempDir;
 
 #[test]
 fn single_checkpoint() {
     let table_size: u64 = 1 << 14;
-    let log_size: u64 = 17179869184;
+    let log_size: u64 = 1073741824;
     let tmp_dir = TempDir::new().unwrap();
     let dir_path = tmp_dir.path().to_string_lossy().into_owned();
-    let store = FasterKv::new(table_size, log_size, dir_path).unwrap();
+    let mut builder = FasterKvBuilder::new(table_size, log_size);
+    builder.with_disk(&dir_path);
+    let store = builder.build().unwrap();
     let value: u64 = 100;
 
     for key in 0..1000 {
@@ -25,10 +27,12 @@ fn single_checkpoint() {
 #[test]
 fn single_checkpoint_index() {
     let table_size: u64 = 1 << 14;
-    let log_size: u64 = 17179869184;
+    let log_size: u64 = 1073741824;
     let tmp_dir = TempDir::new().unwrap();
     let dir_path = tmp_dir.path().to_string_lossy().into_owned();
-    let store = FasterKv::new(table_size, log_size, dir_path).unwrap();
+    let mut builder = FasterKvBuilder::new(table_size, log_size);
+    builder.with_disk(&dir_path);
+    let store = builder.build().unwrap();
     let value: u64 = 100;
 
     for key in 0..1000 {
@@ -43,10 +47,12 @@ fn single_checkpoint_index() {
 #[test]
 fn single_checkpoint_hybrid_log() {
     let table_size: u64 = 1 << 14;
-    let log_size: u64 = 17179869184;
+    let log_size: u64 = 1073741824;
     let tmp_dir = TempDir::new().unwrap();
     let dir_path = tmp_dir.path().to_string_lossy().into_owned();
-    let store = FasterKv::new(table_size, log_size, dir_path).unwrap();
+    let mut builder = FasterKvBuilder::new(table_size, log_size);
+    builder.with_disk(&dir_path);
+    let store = builder.build().unwrap();
     let value: u64 = 100;
 
     for key in 0..1000 {
@@ -65,9 +71,7 @@ fn concurrent_checkpoints() {
 
 #[test]
 fn in_memory_checkpoint_errors() {
-    let table_size: u64 = 1 << 14;
-    let log_size: u64 = 17179869184;
-    let store = FasterKv::new_in_memory(table_size, log_size);
+    let store = FasterKv::default();
     let value: u64 = 100;
 
     for key in 0..1000 {
@@ -84,9 +88,7 @@ fn in_memory_checkpoint_errors() {
 
 #[test]
 fn in_memory_checkpoint_index_errors() {
-    let table_size: u64 = 1 << 14;
-    let log_size: u64 = 17179869184;
-    let store = FasterKv::new_in_memory(table_size, log_size);
+    let store = FasterKv::default();
     let value: u64 = 100;
 
     for key in 0..1000 {
@@ -103,9 +105,7 @@ fn in_memory_checkpoint_index_errors() {
 
 #[test]
 fn in_memory_checkpoint_hybrid_log_errors() {
-    let table_size: u64 = 1 << 14;
-    let log_size: u64 = 17179869184;
-    let store = FasterKv::new_in_memory(table_size, log_size);
+    let store = FasterKv::default();
     let value: u64 = 100;
 
     for key in 0..1000 {

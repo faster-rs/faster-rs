@@ -78,7 +78,7 @@ pub trait FasterRmw: DeserializeOwned + Serialize {
     ///     }
     /// }
     ///
-    /// let store = FasterKv::new_in_memory(32768, 536870912);
+    /// let store = FasterKv::default();
     /// let key = 5 as u64;
     /// let value = MyU64 { value: 12 };
     /// let modification = MyU64 { value: 17 };

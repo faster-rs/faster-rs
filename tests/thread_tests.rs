@@ -7,9 +7,7 @@ use std::thread;
 
 #[test]
 fn multi_threaded_test() {
-    let table_size: u64 = 1 << 14;
-    let log_size: u64 = 17179869184;
-    let store = Arc::new(FasterKv::new_in_memory(table_size, log_size));
+    let store = Arc::new(FasterKv::default());
     let ops = 1 << 15;
 
     let initial_value: u64 = 100;
