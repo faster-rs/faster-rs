@@ -1,5 +1,5 @@
 [submodule "libfaster-sys/FASTER"]
     path = libfaster-sys/FASTER
-    url = https://github.com/faster-rs/FASTER.git
-    branch = master
+    url = https://github.com/matthewbrookes/FASTER.git
+    branch = measure-locking
 
