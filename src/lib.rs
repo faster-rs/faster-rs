@@ -106,6 +106,52 @@ impl FasterKv {
         }
     }
 
+    /// Deletes a previously inserted key.
+    ///
+    /// Returns [NOT_FOUND](status/constant.NOT_FOUND.html) for un-inserted keys.
+    ///
+    /// # Example
+    /// ```
+    /// use faster_rs::{FasterKv, status};
+    /// let store = FasterKv::default();
+    ///
+    /// let key = 1;
+    /// let value = 42;
+    ///
+    /// // Insert key-value
+    /// store.upsert(&key, &value, 1);
+    ///
+    /// // Read key-value
+    /// let (res, recv) = store.read(&key, 1);
+    /// assert_eq!(status::OK, res);
+    /// assert_eq!(value, recv.recv().unwrap());
+    ///
+    /// // Delete key-value
+    /// store.delete(&key, 1);
+    ///
+    /// // Re-read key-value and confirm deleted
+    /// let (res, recv) = store.read::<i32, i32>(&key, 1);
+    /// assert_eq!(status::NOT_FOUND, res);
+    /// assert!(recv.recv().is_err());
+    /// ```
+    pub fn delete<K>(&self, key: &K, monotonic_serial_number: u64) -> u8
+    where
+        K: FasterKey,
+    {
+        let mut encoded_key = bincode::serialize(key).unwrap();
+        let encoded_key_length = encoded_key.len();
+        let encoded_key_ptr = encoded_key.as_mut_ptr();
+        std::mem::forget(encoded_key);
+        unsafe {
+            ffi::faster_delete(
+                self.faster_t,
+                encoded_key_ptr,
+                encoded_key_length as u64,
+                monotonic_serial_number,
+            )
+        }
+    }
+
     pub fn size(&self) -> u64 {
         unsafe { ffi::faster_size(self.faster_t) }
     }
