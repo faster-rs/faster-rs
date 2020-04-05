@@ -183,7 +183,7 @@ impl FasterKv {
             return Err(FasterError::InvalidType);
         }
 
-        let result = unsafe { ffi::faster_checkpoint(self.faster_t) };
+        let result = unsafe { ffi::faster_checkpoint_index(self.faster_t) };
         match result.is_null() {
             true => Err(FasterError::CheckpointError),
             false => {
@@ -205,7 +205,7 @@ impl FasterKv {
             return Err(FasterError::InvalidType);
         }
 
-        let result = unsafe { ffi::faster_checkpoint(self.faster_t) };
+        let result = unsafe { ffi::faster_checkpoint_hybrid_log(self.faster_t) };
         match result.is_null() {
             true => Err(FasterError::CheckpointError),
             false => {
